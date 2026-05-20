@@ -469,6 +469,25 @@ Acceptance:
 
 **Owner:** Frontend Lead with UI/UX Developer support.
 
+### MVP Screen Count
+
+The MVP targets 7 screens:
+
+1. Splash Screen
+2. Welcome Screen
+3. Set Store Location Screen
+4. Route Planner Screen
+5. Loading Screen
+6. Results Screen
+7. Settings Screen
+
+Post-MVP screens:
+
+8. Login/Register Screen
+9. Route History Screen
+10. Saved Stops Screen
+11. Share/Export Screen or Modal
+
 ### Phase 2A: Navigation and Screens
 
 **Files:**

@@ -148,22 +148,16 @@ Required first endpoints:
 
 ## Local Setup
 
-Backend setup will be added once `backend/` is scaffolded.
-
-Expected backend commands:
+Backend commands:
 
 ```powershell
 Set-Location backend
-python -m venv .venv
-.venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload
-pytest -v
+python -m pytest .\tests -v -p no:cacheprovider --rootdir .
 ```
 
-Frontend setup will be added once `mobile/` is scaffolded.
-
-Expected frontend commands:
+Frontend commands:
 
 ```powershell
 Set-Location mobile
@@ -178,4 +172,3 @@ npx expo start
 - Use small commits tied to phases/sub-phases in `IMPLEMENTATION_PLAN.md`.
 - Do not add Firebase, traffic, history, or navigation handoff until MVP is stable.
 - Do not use Google Routes or other third-party route optimizers for the MVP optimization logic.
-

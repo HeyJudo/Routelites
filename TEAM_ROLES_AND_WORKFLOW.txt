@@ -1,0 +1,251 @@
+RouteLite Team Roles and Workflow
+Simple Version for Group 12
+
+Purpose
+This file explains the roles for our RouteLite project in simple terms.
+
+Please read these files before our meeting:
+
+1. README.md
+2. IMPLEMENTATION_PLAN.md
+3. PRD.md
+4. TEAM_ROLES_AND_WORKFLOW.txt
+
+RouteLite is our DAA project. The main goal is to show that our app can compare:
+
+- the original route entered by the user
+- the optimized route made by our algorithm
+
+The important algorithms are:
+
+- Dijkstra's Algorithm
+- Branch and Bound for TSP
+
+
+ROLE 1: Lead Developer / Backend Lead
+
+Main job:
+Leads the technical side of the project and builds the backend.
+
+What this person does:
+- Sets up the backend/server.
+- Creates the API that the mobile app will use.
+- Builds the route optimization logic.
+- Implements Dijkstra's Algorithm.
+- Implements Branch and Bound TSP.
+- Handles the road map data.
+- Makes sure the mobile app and backend connect properly.
+- Helps decide the technical direction of the project.
+
+Also helps with:
+- Explaining the algorithms during defense.
+- Preparing the local backend backup for defense day.
+- Writing the algorithm/methodology part of the documentation.
+
+Current owner:
+Jude.
+
+
+ROLE 2: Frontend Lead
+
+Main job:
+Builds the mobile app screens and app behavior.
+
+What this person does:
+- Sets up the Expo React Native mobile app.
+- Creates the app navigation.
+- Builds the screen flow.
+- Handles store location and delivery stop data in the app.
+- Shows the map.
+- Adds the store pin and stop pins.
+- Connects the app to the backend.
+- Shows the route result returned by the backend.
+- Builds the button or toggle for naive route vs optimized route.
+
+Also helps with:
+- Explaining how the app works.
+- Making sure the app works smoothly with the backend.
+
+
+ROLE 3: UI/UX Developer
+
+Main job:
+Makes the app look clean, clear, and easy to use.
+
+What this person does:
+- Designs the app screens.
+- Chooses colors, spacing, and layout.
+- Designs the map layout.
+- Designs buttons, cards, bottom sheets, and loading screens.
+- Designs the stop pins and route result screen.
+- Makes sure users can understand what to do.
+- Makes sure the app looks presentable for defense.
+
+Also helps with:
+- Testing the app on a phone if possible.
+- Preparing screenshots for the defense.
+
+
+ROLE 4: QA + Docs / Backend Support
+
+Main job:
+Helps test the project, prepare documentation, and support the backend work.
+
+What this person does:
+- Tests if the app works correctly.
+- Tests if the backend gives correct results.
+- Prepares sample delivery stops for the demo.
+- Checks common problems, like wrong locations or outside-NCR stops.
+- Helps write setup instructions.
+- Helps prepare the defense script.
+- Helps prepare screenshots or backup recording.
+- Helps with backend setup if needed.
+
+Also helps with:
+- Paper sections.
+- Defense slides.
+- Demo rehearsal.
+
+
+MVP App Screens
+
+For the MVP, we need 7 screens only.
+
+1. Splash Screen
+- Shows the app logo or loading screen.
+
+2. Welcome Screen
+- First screen for new users.
+- No login for MVP.
+
+3. Set Store Location Screen
+- User chooses the store or starting point.
+
+4. Route Planner Screen
+- Main screen of the app.
+- User sees the map.
+- User adds delivery stops.
+- User taps Optimize Route.
+
+5. Loading Screen
+- Shows that the app is calculating the route.
+
+6. Results Screen
+- Shows the optimized route.
+- Shows the original route.
+- Shows total distance and savings.
+- Shows algorithm details for defense.
+
+7. Settings Screen
+- Simple screen for changing store location or checking app settings.
+
+
+Post-MVP Screens
+
+These screens are only if we have extra time:
+
+8. Login/Register Screen
+9. Route History Screen
+10. Saved Stops Screen
+11. Share/Export Screen
+
+MVP target:
+7 screens.
+
+If we have more time:
+Up to 11 screens.
+
+
+Suggested Group Chat Message
+
+Hi team, I prepared the RouteLite repo context and implementation plan.
+
+Please read:
+
+- README.md
+- IMPLEMENTATION_PLAN.md
+- PRD.md
+- TEAM_ROLES_AND_WORKFLOW.txt
+
+I will handle Lead Developer / Backend Lead.
+
+Please reply with:
+
+1. preferred role
+2. backup role
+3. availability for the next 3 days
+
+Tomorrow, let us have a short meeting to finalize roles, workflow, and first tasks.
+
+
+Suggested Workflow
+
+1. Everyone reads the project files first.
+2. Everyone chooses a preferred role and backup role.
+3. We meet tomorrow to finalize roles.
+4. Each person gets clear tasks from IMPLEMENTATION_PLAN.md.
+5. We use GitHub Issues to track tasks.
+6. We use separate branches for our work.
+7. We open pull requests before merging work.
+8. We keep the main branch clean and working.
+
+
+Suggested Meeting Agenda
+
+1. Confirm the MVP scope.
+2. Confirm the roles.
+3. Assign the first tasks.
+4. Agree on GitHub workflow.
+5. Set the next deadline/checkpoint.
+
+
+First Tasks by Role
+
+Lead Developer / Backend Lead:
+- Set up the backend.
+- Add health check endpoint.
+- Build demo graph.
+- Start Dijkstra implementation.
+
+Frontend Lead:
+- Set up the mobile app.
+- Add basic navigation.
+- Start the map screen.
+
+UI/UX Developer:
+- Design the 7 MVP screens.
+- Start with Route Planner and Results screens first.
+
+QA + Docs / Backend Support:
+- Prepare demo locations inside NCR.
+- Start defense script outline.
+- Help check setup instructions.
+
+
+Important Scope Reminder
+
+Do not work on these yet:
+
+- Firebase login
+- Route history
+- Saved stops
+- Sharing
+- Google Maps/Waze navigation handoff
+- Real-time traffic
+
+These are Post-MVP. We should only add them after the main app is working.
+
+
+Important Defense Reminder
+
+Google Maps is only for showing the map.
+Google Places is only for searching places.
+
+Our backend does the route optimization using:
+
+- OpenStreetMap road data
+- Dijkstra's Algorithm
+- Branch and Bound TSP
+
+This is important because our project is for DAA.
+
