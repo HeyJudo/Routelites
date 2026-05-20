@@ -84,6 +84,37 @@ def test_optimize_rejects_empty_stop_list():
     assert response.status_code == 422
 
 
+def test_optimize_rejects_locations_that_snap_to_same_demo_node():
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/optimize",
+        json={
+            "store": {
+                "lat": 14.5995,
+                "lng": 120.9842,
+                "label": "Store",
+            },
+            "stops": [
+                {
+                    "id": "duplicate_store",
+                    "lat": 14.5995,
+                    "lng": 120.9842,
+                    "label": "Duplicate Store",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {
+        "detail": (
+            "Store and stops must map to distinct route nodes in demo mode. "
+            "Adjust duplicate or very close coordinates."
+        )
+    }
+
+
 def test_optimize_returns_clustered_not_implemented_for_more_than_exact_threshold():
     client = TestClient(app)
 

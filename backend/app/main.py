@@ -53,6 +53,15 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
             for stop in request.stops
         ],
     ]
+    if len(set(selected_nodes)) != len(selected_nodes):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Store and stops must map to distinct route nodes in demo mode. "
+                "Adjust duplicate or very close coordinates."
+            ),
+        )
+
     matrix_result = build_distance_matrix(graph, selected_nodes)
     tsp_result = solve_tsp_branch_bound(matrix_result.distances)
     optimized_route = compute_route_from_tsp_result(matrix_result, tsp_result)
