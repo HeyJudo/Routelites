@@ -1,0 +1,56 @@
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.*
+!.env.example
+!backend/.env.example
+!mobile/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Backend generated data
+backend/data/*.pkl
+backend/data/*.pickle
+backend/data/*.gpkg
+backend/data/*.graphml
+backend/data/*.osm
+backend/data/*.osm.pbf
+!backend/data/README.md
+!backend/data/*.geojson
+!backend/data/demo_routes.json
+
+# Node / Expo / React Native
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.expo/
+.expo-shared/
+dist/
+build/
+web-build/
+android/
+ios/
+
+# Logs
+*.log
+
