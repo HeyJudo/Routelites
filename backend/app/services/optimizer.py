@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from app.algorithms.tsp_branch_bound import TspResult
 from app.algorithms.dijkstra import reconstruct_path, run_dijkstra
 from app.graph import RoadGraph
 
@@ -82,5 +83,35 @@ def compute_naive_route(matrix_result: DistanceMatrixResult) -> RouteResult:
     return RouteResult(
         order=route_order,
         total_distance_m=total_distance,
+        legs=legs,
+    )
+
+
+def compute_route_from_tsp_result(
+    matrix_result: DistanceMatrixResult,
+    tsp_result: TspResult,
+) -> RouteResult:
+    route_order = [
+        matrix_result.node_order[node_index]
+        for node_index in tsp_result.order
+    ]
+    legs: list[RouteLeg] = []
+
+    for source, target in zip(route_order[:-1], route_order[1:], strict=True):
+        source_index = matrix_result.node_order.index(source)
+        target_index = matrix_result.node_order.index(target)
+        distance = matrix_result.distances[source_index][target_index]
+        legs.append(
+            RouteLeg(
+                source=source,
+                target=target,
+                distance_m=distance,
+                path=matrix_result.paths[(source, target)],
+            )
+        )
+
+    return RouteResult(
+        order=route_order,
+        total_distance_m=tsp_result.total_distance,
         legs=legs,
     )
