@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Crosshair, Search, Store } from "lucide-react-native";
+import { Crosshair, Search } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
+import { demoStore } from "../data/demoRoute";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
@@ -33,16 +35,13 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
           </Pressable>
         </View>
         <View style={styles.mapArea}>
-          <View style={styles.storePin}>
-            <Store color={colors.card} size={18} />
-          </View>
+          <RouteMap store={demoStore} />
         </View>
         <View style={styles.sheet}>
           <View style={styles.handle} />
-          <Text style={styles.storeTitle}>Select your NCR store</Text>
+          <Text style={styles.storeTitle}>{demoStore.label}</Text>
           <Text style={styles.storeAddress}>
-            Search or use your current location, then save it as your route
-            start point.
+            {demoStore.address}
           </Text>
           <PrimaryButton onPress={() => navigation.replace("MainTabs")}>
             Save store location
@@ -89,10 +88,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   mapArea: {
-    alignItems: "center",
     backgroundColor: "#e7efed",
     flex: 1,
-    justifyContent: "center",
+    overflow: "hidden",
   },
   searchBox: {
     alignItems: "center",
@@ -120,14 +118,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 22,
   },
-  storePin: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: 26,
-    height: 52,
-    justifyContent: "center",
-    width: 52,
-  },
   storeTitle: {
     color: colors.text,
     fontSize: 24,
@@ -135,4 +125,3 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
-
