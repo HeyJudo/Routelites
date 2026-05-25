@@ -1,17 +1,43 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { StyleSheet, Text, View } from "react-native";
 
+import { LogoMark } from "../components/LogoMark";
 import { LoadingScreen } from "../screens/LoadingScreen";
 import { SetStoreScreen } from "../screens/SetStoreScreen";
 import { SplashScreen } from "../screens/SplashScreen";
 import { WelcomeScreen } from "../screens/WelcomeScreen";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors } from "../theme";
 import { MainTabs } from "./MainTabs";
 import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Root navigator for the app that gates rendering until route state is hydrated and then mounts the navigation stack.
+ *
+ * While the persisted route draft store is initializing, renders a compact brand view. After hydration, selects the initial stack route — `"MainTabs"` when a store location exists, otherwise `"Splash"` — and configures the app's NavigationContainer and stack screens.
+ *
+ * @returns The top-level React element containing the configured NavigationContainer and stack navigator
+ */
 export function AppNavigator() {
+  const hasHydrated = useRouteDraftStore((s) => s.hasHydrated);
+  const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+
+  if (!hasHydrated) {
+    return (
+      <View style={hydrationStyles.container}>
+        <LogoMark size="lg" />
+        <Text style={hydrationStyles.text}>RouteLite</Text>
+      </View>
+    );
+  }
+
+  const initialRoute: keyof RootStackParamList = storeLocation
+    ? "MainTabs"
+    : "Splash";
+
   return (
     <NavigationContainer
       theme={{
@@ -45,7 +71,7 @@ export function AppNavigator() {
       }}
     >
       <Stack.Navigator
-        initialRouteName="Splash"
+        initialRouteName={initialRoute}
         screenOptions={{
           animation: "fade",
           contentStyle: {
@@ -68,3 +94,13 @@ export function AppNavigator() {
   );
 }
 
+const hydrationStyles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    flex: 1,
+    gap: 16,
+    justifyContent: "center",
+  },
+  text: { color: colors.text, fontSize: 28, fontWeight: "800" },
+});

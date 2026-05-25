@@ -7,12 +7,27 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
 import { demoStore } from "../data/demoRoute";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type SetStoreScreenProps = NativeStackScreenProps<RootStackParamList, "SetStore">;
 
+/**
+ * Renders the "Set store location" screen where the user can search for or choose a pickup/store location.
+ *
+ * The screen displays guidance text, a search UI placeholder, a "Use current location" row, a map preview, and a bottom sheet with the selected store details and a save action. Activating the save action persists the demo store as the route's store location and replaces the current route with the main tab navigator.
+ *
+ * @returns The JSX element for the "Set store location" screen
+ */
 export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
+  const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
+
+  const handleSave = () => {
+    setStoreLocation(demoStore);
+    navigation.replace("MainTabs");
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader
@@ -43,7 +58,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
           <Text style={styles.storeAddress}>
             {demoStore.address}
           </Text>
-          <PrimaryButton onPress={() => navigation.replace("MainTabs")}>
+          <PrimaryButton onPress={handleSave}>
             Save store location
           </PrimaryButton>
         </View>
