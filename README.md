@@ -167,7 +167,7 @@ python -m pytest .\tests -v -p no:cacheprovider --rootdir .
 Frontend commands:
 
 ```powershell
-Set-Location -LiteralPath "C:\Users\Jude Sangalang\OneDrive\Documents\JUDO FILES\Programming\Projects\[DAA] ROUTELITEW\mobile"
+Set-Location mobile
 npm install
 npx expo start
 ```

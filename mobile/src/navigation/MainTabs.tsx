@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Map, Route, Settings } from "lucide-react-native";
 
 import { PlannerScreen } from "../screens/PlannerScreen";
-import { ResultsScreen } from "../screens/ResultsScreen";
+import { ResultsTabScreen } from "../screens/ResultsTabScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { colors } from "../theme";
 import type { MainTabParamList } from "./types";
@@ -49,7 +49,7 @@ export function MainTabs() {
       })}
     >
       <Tab.Screen name="Planner" component={PlannerScreen} />
-      <Tab.Screen name="Results" component={ResultsScreen} />
+      <Tab.Screen name="Results" component={ResultsTabScreen} />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );

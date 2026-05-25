@@ -33,6 +33,7 @@ export const useRouteDraftStore = create<RouteDraftState>()(
       removeStop: (id) => set((s) => ({ stops: s.stops.filter((st) => st.id !== id) })),
       reorderStop: (from, to) =>
         set((s) => {
+          if (from === to || from < 0 || to < 0 || from >= s.stops.length || to >= s.stops.length) return s;
           const next = [...s.stops];
           const [item] = next.splice(from, 1);
           next.splice(to, 0, item);

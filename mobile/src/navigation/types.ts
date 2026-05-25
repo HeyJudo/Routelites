@@ -1,9 +1,12 @@
+import type { OptimizeResponse } from "../types/api";
+
 export type RootStackParamList = {
   Splash: undefined;
   Welcome: undefined;
   SetStore: undefined;
-  MainTabs: undefined;
+  MainTabs: { screen?: string; params?: object } | undefined;
   Loading: undefined;
+  Results: { response: OptimizeResponse };
 };
 
 export type MainTabParamList = {
@@ -11,4 +14,3 @@ export type MainTabParamList = {
   Results: undefined;
   Settings: undefined;
 };
-

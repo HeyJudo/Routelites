@@ -27,7 +27,7 @@ export function StopListModal({ visible, onClose }: Props) {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Stops ({stops.length})</Text>
-          <Pressable hitSlop={12} onPress={onClose}>
+          <Pressable accessibilityLabel="Close" accessibilityRole="button" hitSlop={12} onPress={onClose}>
             <X color={colors.text} size={24} />
           </Pressable>
         </View>
@@ -49,6 +49,8 @@ export function StopListModal({ visible, onClose }: Props) {
               </View>
               <View style={styles.actions}>
                 <Pressable
+                  accessibilityLabel="Move stop up"
+                  accessibilityRole="button"
                   disabled={index === 0}
                   hitSlop={6}
                   onPress={() => reorderStop(index, index - 1)}
@@ -63,6 +65,8 @@ export function StopListModal({ visible, onClose }: Props) {
                   />
                 </Pressable>
                 <Pressable
+                  accessibilityLabel="Move stop down"
+                  accessibilityRole="button"
                   disabled={index === stops.length - 1}
                   hitSlop={6}
                   onPress={() => reorderStop(index, index + 1)}
@@ -80,6 +84,8 @@ export function StopListModal({ visible, onClose }: Props) {
                   />
                 </Pressable>
                 <Pressable
+                  accessibilityLabel="Remove stop"
+                  accessibilityRole="button"
                   hitSlop={6}
                   onPress={() => removeStop(item.id)}
                   style={styles.actionBtn}

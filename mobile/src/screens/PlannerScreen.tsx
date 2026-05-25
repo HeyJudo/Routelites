@@ -1,4 +1,6 @@
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
@@ -21,7 +23,7 @@ import { StopListModal } from "../components/StopListModal";
 import { createMapStop, demoStore } from "../data/demoRoute";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
-import type { MainTabParamList } from "../navigation/types";
+import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { isDuplicateStop, isInsideNCR } from "../utils/validation";
 
 type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
@@ -37,6 +39,7 @@ type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
  * @returns The Planner screen React element
  */
 export function PlannerScreen({ navigation }: PlannerScreenProps) {
+  const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { height } = useWindowDimensions();
   const stops = useRouteDraftStore((s) => s.stops);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
@@ -200,7 +203,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                   size={20}
                 />
               }
-              onPress={() => navigation.navigate("Results")}
+              onPress={() => rootNav.navigate("Loading")}
             >
               Optimize route
             </PrimaryButton>
