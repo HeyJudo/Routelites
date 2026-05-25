@@ -1,11 +1,44 @@
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { FlaskConical, Info, PlugZap, Store } from "lucide-react-native";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
+import type { RootStackParamList } from "../navigation/types";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 
 export function SettingsScreen() {
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+  const clearStops = useRouteDraftStore((s) => s.clearStops);
+  const clearStoreLocation = useRouteDraftStore((s) => s.clearStoreLocation);
+  const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+
+  const handleClearDraft = () => {
+    Alert.alert("Clear route draft", "Remove all stops?", [
+      { style: "cancel", text: "Cancel" },
+      { onPress: clearStops, text: "Clear" },
+    ]);
+  };
+
+  const handleReset = () => {
+    Alert.alert("Reset app", "Clear store and all stops?", [
+      { style: "cancel", text: "Cancel" },
+      {
+        onPress: () => {
+          clearStops();
+          clearStoreLocation();
+          navigation.reset({ index: 0, routes: [{ name: "Splash" }] });
+        },
+        style: "destructive",
+        text: "Reset",
+      },
+    ]);
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader showMenu />
@@ -18,8 +51,17 @@ export function SettingsScreen() {
           icon={<Store color={colors.primaryDark} size={22} />}
           title="Store Location"
         >
-          <Text style={styles.bodyText}>Currently assigned to Depot Alpha.</Text>
-          <PrimaryButton variant="secondary">Change store location</PrimaryButton>
+          <Text style={styles.bodyText}>
+            {storeLocation
+              ? `${storeLocation.label} — ${storeLocation.address}`
+              : "No store set."}
+          </Text>
+          <PrimaryButton
+            onPress={() => navigation.navigate("SetStore")}
+            variant="secondary"
+          >
+            Change store location
+          </PrimaryButton>
         </SettingsCard>
         <SettingsCard
           icon={<PlugZap color={colors.primaryDark} size={22} />}
@@ -32,8 +74,15 @@ export function SettingsScreen() {
           icon={<FlaskConical color={colors.primaryDark} size={22} />}
           title="Demo & Development"
         >
-          <PrimaryButton variant="secondary">Load demo route</PrimaryButton>
-          <PrimaryButton variant="danger">Clear route draft</PrimaryButton>
+          <PrimaryButton onPress={loadDemoRoute} variant="secondary">
+            Load demo route
+          </PrimaryButton>
+          <PrimaryButton onPress={handleClearDraft} variant="danger">
+            Clear route draft
+          </PrimaryButton>
+          <PrimaryButton onPress={handleReset} variant="danger">
+            Reset app
+          </PrimaryButton>
         </SettingsCard>
         <SettingsCard
           icon={<Info color={colors.muted} size={22} />}
@@ -119,4 +168,3 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 });
-

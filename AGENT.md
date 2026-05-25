@@ -3,6 +3,14 @@
 ## Project
 RouteLite is a cross-platform mobile route optimization app for delivery riders and small local businesses in Metro Manila (NCR). It is the DAA final project for COSC 203 at PUP-CCIS (Group 12, BSCS 2-4). The full PRD is in `PRD.md`.
 
+## Current Implementation State
+- Backend Phase 1 is implemented on the demo graph: FastAPI app, `GET /health`, `POST /api/optimize`, custom demo graph, custom Dijkstra, distance matrix/naive route service, custom Branch and Bound TSP, and backend tests.
+- Mobile Phase 2A is implemented: root stack navigation, Splash, Welcome, Set Store, Loading, and MainTabs with Planner, Results, and Settings.
+- Mobile Phase 2B is implemented: real `react-native-maps` map display, Metro Manila demo region, demo NCR store marker, numbered stop markers, long-press map stop creation, and `Load demo route` on Planner.
+- Mobile Phase 2C is implemented: Zustand route draft store with AsyncStorage persistence, store location persists across restarts, shared stop state (add/remove/reorder), StopListModal with move up/down and remove, local NCR boundary and duplicate validation, Settings screen wired to store actions (clear draft, reset app, load demo).
+- Mobile Phase 2D is not implemented yet. Results still use placeholder UI and do not render a backend-shaped mock optimization response.
+- Phase 3 integration and Phase 4 NCR graph/boundary backend work have not started.
+
 ## Final Scope
 - **Cross-platform mobile app** built with Expo React Native + TypeScript (iOS + Android).
 - **Python FastAPI backend** hosts the NCR road graph and runs all computation.
@@ -62,6 +70,10 @@ RouteLite is a cross-platform mobile route optimization app for delivery riders 
 - Firebase Auth, route history, navigation handoff, sharing, and real-time traffic are optional/Post-MVP unless explicitly required.
 - The **backend** handles all heavy computation. The app is a lightweight UI client.
 - Real-time traffic is Post-MVP. Start with traffic-aware ETA overlay before considering traffic-based optimization.
+- RouteLite must not reject valid stops solely because of stop count. Stop count changes the computation mode and exactness claim.
+- Current frontend map data is mock/demo NCR data. Real backend boundary validation belongs to Phase 4A; Phase 2C may add only lightweight local validation for UI feedback.
+- The Planner currently uses a custom draggable sheet built with React Native `Animated` and `PanResponder`, not `@gorhom/bottom-sheet`, because Expo Go produced a Worklets native mismatch during Phase 2B testing.
+- Google Places search is not wired yet. Search fields are visual/local placeholders until a later Phase 2/Phase 3 step.
 
 ## App Screens (MVP + Optional)
 1. Splash
@@ -86,6 +98,9 @@ RouteLite is a cross-platform mobile route optimization app for delivery riders 
 - `introduction` — paper introduction and related works
 - `routelite-concepts/` — system architecture docs, flowcharts, pseudocode, mockup prompts
 - `routelite-concepts/routelite_concept.txt` — **OUTDATED**, contains Nearest Neighbor references. Refer to PRD.md instead.
+- `UI SCREENS/` — approved PNG UI references for the seven MVP screens and key visual states.
+- `mobile/src/data/demoRoute.ts` — current Phase 2 demo NCR store/stops used by the map.
+- `mobile/src/components/RouteMap.tsx` — current reusable map component for store and numbered stop markers.
 
 ## Team
 - Bargamento, Ronil D.

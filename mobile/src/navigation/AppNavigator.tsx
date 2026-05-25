@@ -1,10 +1,13 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { StyleSheet, Text, View } from "react-native";
 
+import { LogoMark } from "../components/LogoMark";
 import { LoadingScreen } from "../screens/LoadingScreen";
 import { SetStoreScreen } from "../screens/SetStoreScreen";
 import { SplashScreen } from "../screens/SplashScreen";
 import { WelcomeScreen } from "../screens/WelcomeScreen";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors } from "../theme";
 import { MainTabs } from "./MainTabs";
 import type { RootStackParamList } from "./types";
@@ -12,6 +15,22 @@ import type { RootStackParamList } from "./types";
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export function AppNavigator() {
+  const hasHydrated = useRouteDraftStore((s) => s.hasHydrated);
+  const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+
+  if (!hasHydrated) {
+    return (
+      <View style={hydrationStyles.container}>
+        <LogoMark size="lg" />
+        <Text style={hydrationStyles.text}>RouteLite</Text>
+      </View>
+    );
+  }
+
+  const initialRoute: keyof RootStackParamList = storeLocation
+    ? "MainTabs"
+    : "Splash";
+
   return (
     <NavigationContainer
       theme={{
@@ -45,7 +64,7 @@ export function AppNavigator() {
       }}
     >
       <Stack.Navigator
-        initialRouteName="Splash"
+        initialRouteName={initialRoute}
         screenOptions={{
           animation: "fade",
           contentStyle: {
@@ -68,3 +87,13 @@ export function AppNavigator() {
   );
 }
 
+const hydrationStyles = StyleSheet.create({
+  container: {
+    alignItems: "center",
+    backgroundColor: colors.background,
+    flex: 1,
+    gap: 16,
+    justifyContent: "center",
+  },
+  text: { color: colors.text, fontSize: 28, fontWeight: "800" },
+});

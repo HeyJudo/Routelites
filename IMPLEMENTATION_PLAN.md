@@ -261,6 +261,15 @@ Current planning date: May 20, 2026.
 | May 31-June 2 | Phase 5 |
 | June 3-4 | Buffer, rehearsal, docs, slides, fixes |
 
+Implementation status as of the latest Phase 2B work:
+
+- Phase 0: implemented.
+- Phase 1: implemented on the demo graph; backend tests pass.
+- Phase 2A: implemented.
+- Phase 2B: implemented with `react-native-maps`, demo NCR data, numbered stop markers, long-press map stop creation, and a custom draggable Planner sheet.
+- Current next target: Phase 2C.
+- Phase 2D and Phase 3+ are not implemented yet.
+
 ---
 
 ## 7. Phase 0: Project Setup
@@ -531,6 +540,11 @@ Acceptance:
 - Map loads on device/emulator.
 - Markers do not overlap critical controls.
 - Stop markers are numbered.
+
+Current implementation note:
+
+- Planner uses a custom draggable sheet using React Native `Animated` and `PanResponder`.
+- `@gorhom/bottom-sheet` is installed but not used in Planner because Expo Go produced a Reanimated/Worklets native mismatch during testing.
 
 ### Phase 2C: Store and Stop State
 

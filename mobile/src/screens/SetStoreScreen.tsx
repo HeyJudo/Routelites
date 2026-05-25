@@ -7,12 +7,20 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
 import { demoStore } from "../data/demoRoute";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type SetStoreScreenProps = NativeStackScreenProps<RootStackParamList, "SetStore">;
 
 export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
+  const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
+
+  const handleSave = () => {
+    setStoreLocation(demoStore);
+    navigation.replace("MainTabs");
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader
@@ -43,7 +51,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
           <Text style={styles.storeAddress}>
             {demoStore.address}
           </Text>
-          <PrimaryButton onPress={() => navigation.replace("MainTabs")}>
+          <PrimaryButton onPress={handleSave}>
             Save store location
           </PrimaryButton>
         </View>

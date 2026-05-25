@@ -2,8 +2,10 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
+  Alert,
   Animated,
   PanResponder,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -15,16 +17,24 @@ import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
-import { createMapStop, demoStops, demoStore } from "../data/demoRoute";
+import { StopListModal } from "../components/StopListModal";
+import { createMapStop, demoStore } from "../data/demoRoute";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 import type { MainTabParamList } from "../navigation/types";
-import type { Stop } from "../types/route";
+import { isDuplicateStop, isInsideNCR } from "../utils/validation";
 
 type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
 
 export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const { height } = useWindowDimensions();
-  const [stops, setStops] = useState<Stop[]>([]);
+  const stops = useRouteDraftStore((s) => s.stops);
+  const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+  const addStop = useRouteDraftStore((s) => s.addStop);
+  const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+  const activeStore = storeLocation ?? demoStore;
+  const [showStopList, setShowStopList] = useState(false);
+
   const collapsedHeight = Math.round(height * 0.38);
   const expandedHeight = Math.round(height * 0.78);
   const sheetHeight = useRef(new Animated.Value(collapsedHeight)).current;
@@ -39,18 +49,23 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
           : `${stops.length} stops - Large-route mode`;
 
   const addMapStop = (coordinate: { latitude: number; longitude: number }) => {
-    setStops((currentStops) => [
-      ...currentStops,
-      createMapStop(
-        coordinate.latitude,
-        coordinate.longitude,
-        currentStops.length + 1,
-      ),
-    ]);
-  };
-
-  const loadDemoRoute = () => {
-    setStops(demoStops);
+    if (!isInsideNCR(coordinate.latitude, coordinate.longitude)) {
+      Alert.alert(
+        "Outside Metro Manila",
+        "This location is outside the NCR service area.",
+      );
+      return;
+    }
+    if (isDuplicateStop(stops, coordinate.latitude, coordinate.longitude)) {
+      Alert.alert(
+        "Duplicate Stop",
+        "A stop near this location already exists.",
+      );
+      return;
+    }
+    addStop(
+      createMapStop(coordinate.latitude, coordinate.longitude, stops.length + 1),
+    );
   };
 
   const snapSheetTo = (nextHeight: number) => {
@@ -92,7 +107,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
       <AppHeader showMenu />
       <ScreenShell padded={false}>
         <View style={styles.mapArea}>
-          <RouteMap onLongPress={addMapStop} stops={stops} store={demoStore} />
+          <RouteMap onLongPress={addMapStop} stops={stops} store={activeStore} />
         </View>
         <Animated.View
           style={[
@@ -115,8 +130,8 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                 <Store color={colors.primaryDark} size={20} />
               </View>
               <View style={styles.storeCopy}>
-                <Text style={styles.cardTitle}>{demoStore.label}</Text>
-                <Text style={styles.cardSubtitle}>{demoStore.address}</Text>
+                <Text style={styles.cardTitle}>{activeStore.label}</Text>
+                <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
               </View>
             </View>
             <View style={styles.searchBox}>
@@ -128,10 +143,18 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
               <Text style={styles.statusTitle}>{stopModeLabel}</Text>
               <Text style={styles.statusChip}>PENDING</Text>
             </View>
-            {stops.length > 10 ? (
+            {stops.length > 10 && stops.length <= 20 ? (
               <View style={styles.warningCard}>
                 <Text style={styles.warningText}>
                   Routes with 11+ stops use clustered mode and are approximate.
+                </Text>
+              </View>
+            ) : null}
+            {stops.length > 20 ? (
+              <View style={styles.warningCard}>
+                <Text style={styles.warningText}>
+                  Large-route mode: {stops.length} stops. Optimization may take
+                  longer and results are approximate.
                 </Text>
               </View>
             ) : null}
@@ -151,9 +174,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                   </View>
                 ))}
                 {stops.length > 4 ? (
-                  <Text style={styles.moreStopsText}>
-                    +{stops.length - 4} more stops
-                  </Text>
+                  <Pressable onPress={() => setShowStopList(true)}>
+                    <Text style={styles.moreStopsText}>
+                      +{stops.length - 4} more stops — View all
+                    </Text>
+                  </Pressable>
                 ) : null}
               </View>
             ) : null}
@@ -179,6 +204,10 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
           </ScrollView>
         </Animated.View>
       </ScreenShell>
+      <StopListModal
+        visible={showStopList}
+        onClose={() => setShowStopList(false)}
+      />
     </View>
   );
 }

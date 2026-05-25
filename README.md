@@ -15,7 +15,12 @@ Google Maps and Google Places are used for display and search only. Route optimi
 
 ## Current Repo Status
 
-This repo currently contains planning and context documents. Implementation starts from the backend foundation in `IMPLEMENTATION_PLAN.md`.
+The backend demo-graph algorithm pipeline is implemented and tested. The mobile app has completed Phase 2A and Phase 2B:
+
+- Phase 2A: navigation and MVP screen shells are in place.
+- Phase 2B: the Planner and Set Store screens use `react-native-maps`, demo NCR store data, numbered stop markers, and long-press map stop creation.
+
+The current next implementation target is **Phase 2C: Store and Stop State**. Phase 2C should move the Planner's local stop state into shared route draft state, persist the store location, support full stop viewing/removal/reordering, and keep all behavior local until Phase 2D/Phase 3.
 
 Read these first:
 
@@ -77,7 +82,9 @@ Frontend:
 - Google Places API
 - React Navigation
 - AsyncStorage or MMKV
-- `@gorhom/bottom-sheet`
+- Custom React Native draggable Planner sheet using `Animated` and `PanResponder`
+
+Note: `@gorhom/bottom-sheet` and Reanimated are installed, but the Planner currently avoids them because Expo Go showed a Worklets native mismatch during Phase 2B testing. Revisit only when using a compatible Expo Go/dev-client setup.
 
 Backend:
 
@@ -160,7 +167,7 @@ python -m pytest .\tests -v -p no:cacheprovider --rootdir .
 Frontend commands:
 
 ```powershell
-Set-Location mobile
+Set-Location -LiteralPath "C:\Users\Jude Sangalang\OneDrive\Documents\JUDO FILES\Programming\Projects\[DAA] ROUTELITEW\mobile"
 npm install
 npx expo start
 ```
