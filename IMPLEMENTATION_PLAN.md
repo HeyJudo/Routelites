@@ -550,7 +550,7 @@ Acceptance:
 
 - Store persists after app restart.
 - Stops can be added and removed.
-- UI prevents adding stop 21.
+- UI allows valid stops beyond 20 and labels them as large-route clustered mode; exact global optimality is not claimed for those routes.
 
 ### Phase 2D: Mock Optimize Flow
 

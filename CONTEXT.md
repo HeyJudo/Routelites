@@ -84,6 +84,8 @@ Exact global optimality is guaranteed only when Branch and Bound runs on the ful
 
 For larger stop sets, RouteLite may still accept the stops, but it must not claim exact global optimization. In large-route mode, Dijkstra is still used to compute shortest road distances, and Branch and Bound is used as a subroutine inside smaller clustered groups.
 
+RouteLite does not reject valid stop input solely because of stop count. Stop count changes the computation mode and exactness claim, not whether the user can enter the stops.
+
 Required result labels:
 
 - `exact`: full-set Branch and Bound was used; the global optimum is claimed for the selected distance matrix.
