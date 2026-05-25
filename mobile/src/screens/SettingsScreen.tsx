@@ -9,6 +9,13 @@ import type { RootStackParamList } from "../navigation/types";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 
+/**
+ * Render the Settings screen containing controls for store location, connection status, demo actions, and app reset.
+ *
+ * The screen displays the current store (or "No store set.") and lets the user navigate to the SetStore screen, load a demo route, clear the current route draft, or reset the app. Clearing the draft and resetting the app prompt for confirmation; resetting clears stops and store location and navigates to the Splash screen.
+ *
+ * @returns The JSX element for the Settings screen
+ */
 export function SettingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();

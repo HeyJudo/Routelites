@@ -6,6 +6,16 @@ import { colors, radius, spacing } from "../theme";
 
 type Props = { visible: boolean; onClose: () => void };
 
+/**
+ * Render a slide-in modal showing the current route stops with per-stop reorder and remove controls.
+ *
+ * The modal lists stops with a 1-based index badge, primary label, truncated address, and actions to move a stop up/down or remove it.
+ * When no stops exist an empty-state message is shown. When stops are present a footer exposes a "Clear all stops" action.
+ *
+ * @param visible - Whether the modal is visible
+ * @param onClose - Called when the modal should be closed (e.g., header close button or system back)
+ * @returns The rendered modal element containing the stops list and controls
+ */
 export function StopListModal({ visible, onClose }: Props) {
   const stops = useRouteDraftStore((s) => s.stops);
   const removeStop = useRouteDraftStore((s) => s.removeStop);

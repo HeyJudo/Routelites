@@ -14,6 +14,13 @@ import type { RootStackParamList } from "./types";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+/**
+ * Root navigator for the app that gates rendering until route state is hydrated and then mounts the navigation stack.
+ *
+ * While the persisted route draft store is initializing, renders a compact brand view. After hydration, selects the initial stack route — `"MainTabs"` when a store location exists, otherwise `"Splash"` — and configures the app's NavigationContainer and stack screens.
+ *
+ * @returns The top-level React element containing the configured NavigationContainer and stack navigator
+ */
 export function AppNavigator() {
   const hasHydrated = useRouteDraftStore((s) => s.hasHydrated);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);

@@ -26,6 +26,16 @@ import { isDuplicateStop, isInsideNCR } from "../utils/validation";
 
 type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
 
+/**
+ * Renders the Planner screen UI for creating, previewing, and optimizing delivery routes.
+ *
+ * Presents an interactive map for adding stops, a draggable bottom sheet with route controls and stop previews,
+ * and actions to optimize the route or load demo data. The component validates map-added stops (location and duplicates),
+ * shows brief toast messages, and opens a modal to view the full stop list.
+ *
+ * @param navigation - Navigation prop used to navigate to the Results screen
+ * @returns The Planner screen React element
+ */
 export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const { height } = useWindowDimensions();
   const stops = useRouteDraftStore((s) => s.stops);

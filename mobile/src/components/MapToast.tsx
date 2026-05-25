@@ -9,6 +9,17 @@ type Props = {
   onDismiss: () => void;
 };
 
+/**
+ * Displays an animated toast with the provided message and dismisses itself after a brief visible period.
+ *
+ * When `visible` becomes true the toast fades in, remains visible for a short duration, then fades out;
+ * `onDismiss` is called once the hide animation finishes.
+ *
+ * @param message - The text displayed inside the toast
+ * @param visible - Whether the toast is currently shown
+ * @param onDismiss - Called after the toast completes its hide animation
+ * @returns The rendered toast element when `visible` is true, otherwise `null`
+ */
 export function MapToast({ message, visible, onDismiss }: Props) {
   const opacity = useRef(new Animated.Value(0)).current;
 

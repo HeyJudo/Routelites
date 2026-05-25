@@ -13,6 +13,13 @@ import type { RootStackParamList } from "../navigation/types";
 
 type SetStoreScreenProps = NativeStackScreenProps<RootStackParamList, "SetStore">;
 
+/**
+ * Renders the "Set store location" screen where the user can search for or choose a pickup/store location.
+ *
+ * The screen displays guidance text, a search UI placeholder, a "Use current location" row, a map preview, and a bottom sheet with the selected store details and a save action. Activating the save action persists the demo store as the route's store location and replaces the current route with the main tab navigator.
+ *
+ * @returns The JSX element for the "Set store location" screen
+ */
 export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
   const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
 
