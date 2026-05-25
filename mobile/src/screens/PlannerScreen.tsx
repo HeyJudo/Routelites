@@ -1,7 +1,15 @@
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
-import { useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useRef, useState } from "react";
+import {
+  Animated,
+  PanResponder,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 
 import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -17,7 +25,10 @@ type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
 export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const { height } = useWindowDimensions();
   const [stops, setStops] = useState<Stop[]>([]);
-  const mapHeight = Math.max(260, Math.round(height * 0.34));
+  const collapsedHeight = Math.round(height * 0.48);
+  const expandedHeight = Math.round(height * 0.78);
+  const sheetHeight = useRef(new Animated.Value(collapsedHeight)).current;
+  const currentSheetHeight = useRef(collapsedHeight);
   const stopModeLabel =
     stops.length === 0
       ? "0 stops"
@@ -42,83 +53,131 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
     setStops(demoStops);
   };
 
+  const snapSheetTo = (nextHeight: number) => {
+    currentSheetHeight.current = nextHeight;
+    Animated.spring(sheetHeight, {
+      damping: 22,
+      mass: 0.8,
+      stiffness: 180,
+      toValue: nextHeight,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gestureState) =>
+        Math.abs(gestureState.dy) > 6,
+      onPanResponderMove: (_event, gestureState) => {
+        const nextHeight = Math.max(
+          collapsedHeight,
+          Math.min(expandedHeight, currentSheetHeight.current - gestureState.dy),
+        );
+        sheetHeight.setValue(nextHeight);
+      },
+      onPanResponderRelease: (_event, gestureState) => {
+        const midpoint = (collapsedHeight + expandedHeight) / 2;
+        const releasedHeight = currentSheetHeight.current - gestureState.dy;
+        const targetHeight =
+          gestureState.vy < -0.35 || releasedHeight > midpoint
+            ? expandedHeight
+            : collapsedHeight;
+        snapSheetTo(targetHeight);
+      },
+    }),
+  ).current;
+
   return (
     <View style={styles.container}>
       <AppHeader showMenu />
       <ScreenShell padded={false}>
-        <View style={[styles.mapArea, { height: mapHeight }]}>
+        <View style={styles.mapArea}>
           <RouteMap onLongPress={addMapStop} stops={stops} store={demoStore} />
         </View>
-        <View style={styles.sheet}>
-          <View style={styles.handle} />
-          <Text style={styles.title}>Ready to plan today's route?</Text>
-          <View style={styles.storeCard}>
-            <View style={styles.storeIcon}>
-              <Store color={colors.primaryDark} size={20} />
-            </View>
-            <View style={styles.storeCopy}>
-              <Text style={styles.cardTitle}>{demoStore.label}</Text>
-              <Text style={styles.cardSubtitle}>{demoStore.address}</Text>
-            </View>
+        <Animated.View
+          style={[
+            styles.sheet,
+            {
+              height: sheetHeight,
+            },
+          ]}
+        >
+          <View style={styles.handleWrap} {...panResponder.panHandlers}>
+            <View style={styles.handle} />
           </View>
-          <View style={styles.searchBox}>
-            <Search color={colors.muted} size={20} />
-            <Text style={styles.searchText}>Add delivery stop</Text>
-            <Plus color={colors.primary} size={20} />
-          </View>
-          <View style={styles.statusCard}>
-            <Text style={styles.statusTitle}>{stopModeLabel}</Text>
-            <Text style={styles.statusChip}>PENDING</Text>
-          </View>
-          {stops.length > 10 ? (
-            <View style={styles.warningCard}>
-              <Text style={styles.warningText}>
-                Routes with 11+ stops use clustered mode and are approximate.
-              </Text>
+          <ScrollView
+            contentContainerStyle={styles.sheetContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.title}>Ready to plan today's route?</Text>
+            <View style={styles.storeCard}>
+              <View style={styles.storeIcon}>
+                <Store color={colors.primaryDark} size={20} />
+              </View>
+              <View style={styles.storeCopy}>
+                <Text style={styles.cardTitle}>{demoStore.label}</Text>
+                <Text style={styles.cardSubtitle}>{demoStore.address}</Text>
+              </View>
             </View>
-          ) : null}
-          {stops.length > 0 ? (
-            <View style={styles.stopList}>
-              {stops.slice(0, 4).map((stop, index) => (
-                <View key={stop.id} style={styles.stopRow}>
-                  <View style={styles.stopNumber}>
-                    <Text style={styles.stopNumberText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.stopCopy}>
-                    <Text style={styles.stopLabel}>{stop.label}</Text>
-                    <Text numberOfLines={1} style={styles.stopAddress}>
-                      {stop.address}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-              {stops.length > 4 ? (
-                <Text style={styles.moreStopsText}>
-                  +{stops.length - 4} more stops
+            <View style={styles.searchBox}>
+              <Search color={colors.muted} size={20} />
+              <Text style={styles.searchText}>Add delivery stop</Text>
+              <Plus color={colors.primary} size={20} />
+            </View>
+            <View style={styles.statusCard}>
+              <Text style={styles.statusTitle}>{stopModeLabel}</Text>
+              <Text style={styles.statusChip}>PENDING</Text>
+            </View>
+            {stops.length > 10 ? (
+              <View style={styles.warningCard}>
+                <Text style={styles.warningText}>
+                  Routes with 11+ stops use clustered mode and are approximate.
                 </Text>
-              ) : null}
-            </View>
-          ) : null}
-          <PrimaryButton
-            disabled={stops.length === 0}
-            icon={
-              <Route
-                color={stops.length === 0 ? colors.muted : colors.card}
-                size={20}
-              />
-            }
-            onPress={() => navigation.navigate("Results")}
-          >
-            Optimize route
-          </PrimaryButton>
-          <PrimaryButton
-            icon={<MapPinned color={colors.text} size={20} />}
-            onPress={loadDemoRoute}
-            variant="secondary"
-          >
-            Load demo route
-          </PrimaryButton>
-        </View>
+              </View>
+            ) : null}
+            {stops.length > 0 ? (
+              <View style={styles.stopList}>
+                {stops.slice(0, 4).map((stop, index) => (
+                  <View key={stop.id} style={styles.stopRow}>
+                    <View style={styles.stopNumber}>
+                      <Text style={styles.stopNumberText}>{index + 1}</Text>
+                    </View>
+                    <View style={styles.stopCopy}>
+                      <Text style={styles.stopLabel}>{stop.label}</Text>
+                      <Text numberOfLines={1} style={styles.stopAddress}>
+                        {stop.address}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+                {stops.length > 4 ? (
+                  <Text style={styles.moreStopsText}>
+                    +{stops.length - 4} more stops
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            <PrimaryButton
+              disabled={stops.length === 0}
+              icon={
+                <Route
+                  color={stops.length === 0 ? colors.muted : colors.card}
+                  size={20}
+                />
+              }
+              onPress={() => navigation.navigate("Results")}
+            >
+              Optimize route
+            </PrimaryButton>
+            <PrimaryButton
+              icon={<MapPinned color={colors.text} size={20} />}
+              onPress={loadDemoRoute}
+              variant="secondary"
+            >
+              Load demo route
+            </PrimaryButton>
+          </ScrollView>
+        </Animated.View>
       </ScreenShell>
     </View>
   );
@@ -140,15 +199,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   handle: {
-    alignSelf: "center",
     backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 4,
-    marginBottom: 18,
-    width: 32,
+    height: 5,
+    width: 44,
+    borderRadius: radius.pill,
+  },
+  handleWrap: {
+    alignItems: "center",
+    paddingBottom: 12,
+    paddingTop: 12,
   },
   mapArea: {
     backgroundColor: "#e6eeeb",
+    flex: 1,
     overflow: "hidden",
   },
   searchBox: {
@@ -169,9 +232,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
-    flex: 1,
+    bottom: 0,
+    left: 0,
+    overflow: "hidden",
+    position: "absolute",
+    right: 0,
+  },
+  sheetContent: {
     gap: spacing.lg,
-    padding: 20,
+    paddingBottom: 100,
+    paddingHorizontal: 20,
+    paddingTop: 0,
   },
   statusCard: {
     alignItems: "center",
