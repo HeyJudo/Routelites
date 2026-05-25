@@ -2,7 +2,6 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
-  Alert,
   Animated,
   PanResponder,
   Pressable,
@@ -14,6 +13,7 @@ import {
 } from "react-native";
 
 import { AppHeader } from "../components/AppHeader";
+import { MapToast } from "../components/MapToast";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
@@ -34,6 +34,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
+  const [toastMsg, setToastMsg] = useState("");
 
   const collapsedHeight = Math.round(height * 0.38);
   const expandedHeight = Math.round(height * 0.78);
@@ -50,17 +51,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
 
   const addMapStop = (coordinate: { latitude: number; longitude: number }) => {
     if (!isInsideNCR(coordinate.latitude, coordinate.longitude)) {
-      Alert.alert(
-        "Outside Metro Manila",
-        "This location is outside the NCR service area.",
-      );
+      setToastMsg("This location is outside Metro Manila");
       return;
     }
     if (isDuplicateStop(stops, coordinate.latitude, coordinate.longitude)) {
-      Alert.alert(
-        "Duplicate Stop",
-        "A stop near this location already exists.",
-      );
+      setToastMsg("A stop near here already exists");
       return;
     }
     addStop(
@@ -108,6 +103,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
       <ScreenShell padded={false}>
         <View style={styles.mapArea}>
           <RouteMap onLongPress={addMapStop} stops={stops} store={activeStore} />
+          <MapToast
+            message={toastMsg}
+            visible={toastMsg !== ""}
+            onDismiss={() => setToastMsg("")}
+          />
         </View>
         <Animated.View
           style={[
