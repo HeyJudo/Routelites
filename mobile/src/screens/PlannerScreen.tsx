@@ -25,7 +25,7 @@ type PlannerScreenProps = BottomTabScreenProps<MainTabParamList, "Planner">;
 export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const { height } = useWindowDimensions();
   const [stops, setStops] = useState<Stop[]>([]);
-  const collapsedHeight = Math.round(height * 0.48);
+  const collapsedHeight = Math.round(height * 0.38);
   const expandedHeight = Math.round(height * 0.78);
   const sheetHeight = useRef(new Animated.Value(collapsedHeight)).current;
   const currentSheetHeight = useRef(collapsedHeight);
