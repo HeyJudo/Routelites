@@ -1,9 +1,10 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import { LogoMark } from "../components/LogoMark";
 import { LoadingScreen } from "../screens/LoadingScreen";
+import { ResultsScreen } from "../screens/ResultsScreen";
 import { SetStoreScreen } from "../screens/SetStoreScreen";
 import { SplashScreen } from "../screens/SplashScreen";
 import { WelcomeScreen } from "../screens/WelcomeScreen";
@@ -22,7 +23,6 @@ export function AppNavigator() {
     return (
       <View style={hydrationStyles.container}>
         <LogoMark size="lg" />
-        <Text style={hydrationStyles.text}>RouteLite</Text>
       </View>
     );
   }
@@ -44,22 +44,10 @@ export function AppNavigator() {
         },
         dark: false,
         fonts: {
-          bold: {
-            fontFamily: "System",
-            fontWeight: "700",
-          },
-          heavy: {
-            fontFamily: "System",
-            fontWeight: "800",
-          },
-          medium: {
-            fontFamily: "System",
-            fontWeight: "500",
-          },
-          regular: {
-            fontFamily: "System",
-            fontWeight: "400",
-          },
+          bold: { fontFamily: "System", fontWeight: "700" },
+          heavy: { fontFamily: "System", fontWeight: "800" },
+          medium: { fontFamily: "System", fontWeight: "500" },
+          regular: { fontFamily: "System", fontWeight: "400" },
         },
       }}
     >
@@ -67,9 +55,7 @@ export function AppNavigator() {
         initialRouteName={initialRoute}
         screenOptions={{
           animation: "fade",
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
+          contentStyle: { backgroundColor: colors.background },
           headerShown: false,
         }}
       >
@@ -82,6 +68,7 @@ export function AppNavigator() {
           component={LoadingScreen}
           options={{ presentation: "modal" }}
         />
+        <Stack.Screen name="Results" component={ResultsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -95,5 +82,4 @@ const hydrationStyles = StyleSheet.create({
     gap: 16,
     justifyContent: "center",
   },
-  text: { color: colors.text, fontSize: 28, fontWeight: "800" },
 });

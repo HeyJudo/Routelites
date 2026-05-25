@@ -18,7 +18,7 @@ export function SettingsScreen() {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
 
   const handleClearDraft = () => {
-    Alert.alert("Clear route draft", "Remove all stops?", [
+    Alert.alert("Clear stops", "Remove all stops?", [
       { style: "cancel", text: "Cancel" },
       { onPress: clearStops, text: "Clear" },
     ]);
@@ -78,7 +78,7 @@ export function SettingsScreen() {
             Load demo route
           </PrimaryButton>
           <PrimaryButton onPress={handleClearDraft} variant="danger">
-            Clear route draft
+            Clear stops
           </PrimaryButton>
           <PrimaryButton onPress={handleReset} variant="danger">
             Reset app
