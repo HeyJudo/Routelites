@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPinned, Route, Store } from "lucide-react-native";
+import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -17,9 +17,9 @@ import {
 import { AppHeader } from "../components/AppHeader";
 import { MapToast } from "../components/MapToast";
 import {
-  PlacesSearchInput,
+  PlacesSearchModal,
   type PlaceResult,
-} from "../components/PlacesSearchInput";
+} from "../components/PlacesSearchModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
@@ -41,6 +41,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
 
   const collapsedHeight = Math.round(height * 0.38);
@@ -148,7 +149,6 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
           <ScrollView
             contentContainerStyle={styles.sheetContent}
             showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
           >
             <Text style={styles.title}>Ready to plan today's route?</Text>
             <View style={styles.storeCard}>
@@ -160,10 +160,14 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                 <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
               </View>
             </View>
-            <PlacesSearchInput
-              onPlaceSelected={handlePlaceSelected}
-              placeholder="Add delivery stop"
-            />
+            <Pressable
+              style={styles.searchBox}
+              onPress={() => setShowSearch(true)}
+            >
+              <Search color={colors.muted} size={20} />
+              <Text style={styles.searchText}>Add delivery stop</Text>
+              <Plus color={colors.primary} size={20} />
+            </Pressable>
             <View style={styles.statusCard}>
               <Text style={styles.statusTitle}>{stopModeLabel}</Text>
               <Text style={styles.statusChip}>PENDING</Text>
@@ -233,6 +237,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
         visible={showStopList}
         onClose={() => setShowStopList(false)}
       />
+      <PlacesSearchModal
+        visible={showSearch}
+        onClose={() => setShowSearch(false)}
+        onPlaceSelected={handlePlaceSelected}
+      />
     </View>
   );
 }
@@ -267,6 +276,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#e6eeeb",
     flex: 1,
     overflow: "hidden",
+  },
+  searchBox: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: radius.pill,
+    flexDirection: "row",
+    gap: spacing.md,
+    minHeight: 52,
+    paddingHorizontal: 16,
+  },
+  searchText: {
+    color: colors.muted,
+    flex: 1,
+    fontSize: 16,
   },
   sheet: {
     backgroundColor: colors.background,
