@@ -8,7 +8,8 @@ RouteLite is a cross-platform mobile route optimization app for delivery riders 
 - Mobile Phase 2A is implemented: root stack navigation, Splash, Welcome, Set Store, Loading, and MainTabs with Planner, Results, and Settings.
 - Mobile Phase 2B is implemented: real `react-native-maps` map display, Metro Manila demo region, demo NCR store marker, numbered stop markers, long-press map stop creation, and `Load demo route` on Planner.
 - Mobile Phase 2C is implemented: Zustand route draft store with AsyncStorage persistence, store location persists across restarts, shared stop state (add/remove/reorder), StopListModal with move up/down and remove, local NCR boundary and duplicate validation, Settings screen wired to store actions (clear draft, reset app, load demo).
-- Mobile Phase 2D is not implemented yet. Results still use placeholder UI and do not render a backend-shaped mock optimization response.
+- Mobile Phase 2D is implemented in the stack flow: Planner navigates to Loading, Loading simulates progress, and Results renders a backend-shaped mock optimization response with map polylines, route stats, stop order, and algorithm metadata.
+- The `Results` bottom-tab screen is still a placeholder empty state. Real shared/live results wiring belongs to Phase 3 integration.
 - Phase 3 integration and Phase 4 NCR graph/boundary backend work have not started.
 
 ## Final Scope

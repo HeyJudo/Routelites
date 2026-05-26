@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
+import { MapPinned, Route, Store } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -16,6 +16,10 @@ import {
 
 import { AppHeader } from "../components/AppHeader";
 import { MapToast } from "../components/MapToast";
+import {
+  PlacesSearchInput,
+  type PlaceResult,
+} from "../components/PlacesSearchInput";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
@@ -64,6 +68,24 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
     addStop(
       createMapStop(coordinate.latitude, coordinate.longitude, stops.length + 1),
     );
+  };
+
+  const handlePlaceSelected = (place: PlaceResult) => {
+    if (!isInsideNCR(place.lat, place.lng)) {
+      setToastMsg("This location is outside Metro Manila");
+      return;
+    }
+    if (isDuplicateStop(stops, place.lat, place.lng)) {
+      setToastMsg("A stop near here already exists");
+      return;
+    }
+    addStop({
+      id: `stop_${Date.now()}`,
+      lat: place.lat,
+      lng: place.lng,
+      label: place.label,
+      address: place.address,
+    });
   };
 
   const snapSheetTo = (nextHeight: number) => {
@@ -126,6 +148,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
           <ScrollView
             contentContainerStyle={styles.sheetContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
             <Text style={styles.title}>Ready to plan today's route?</Text>
             <View style={styles.storeCard}>
@@ -137,11 +160,10 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                 <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
               </View>
             </View>
-            <View style={styles.searchBox}>
-              <Search color={colors.muted} size={20} />
-              <Text style={styles.searchText}>Add delivery stop</Text>
-              <Plus color={colors.primary} size={20} />
-            </View>
+            <PlacesSearchInput
+              onPlaceSelected={handlePlaceSelected}
+              placeholder="Add delivery stop"
+            />
             <View style={styles.statusCard}>
               <Text style={styles.statusTitle}>{stopModeLabel}</Text>
               <Text style={styles.statusChip}>PENDING</Text>
@@ -245,20 +267,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#e6eeeb",
     flex: 1,
     overflow: "hidden",
-  },
-  searchBox: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
-    flexDirection: "row",
-    gap: spacing.md,
-    minHeight: 52,
-    paddingHorizontal: 16,
-  },
-  searchText: {
-    color: colors.muted,
-    flex: 1,
-    fontSize: 16,
   },
   sheet: {
     backgroundColor: colors.background,
