@@ -30,6 +30,7 @@ export function MainTabs() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           height: 74,
+          paddingBottom: 10,
           paddingHorizontal: 22,
         },
         tabBarIcon: ({ color, focused, size }) => {
