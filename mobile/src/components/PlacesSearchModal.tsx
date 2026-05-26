@@ -1,18 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Animated,
-  Dimensions,
   Keyboard,
   Modal,
-  PanResponder,
   Pressable,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { ChevronLeft, MapPin, X } from "lucide-react-native";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  MapPin,
+  Search,
+  X,
+} from "lucide-react-native";
 
 import { colors, radius, spacing } from "../theme";
 
@@ -39,7 +43,6 @@ type Prediction = {
 };
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
-const SCREEN_HEIGHT = Dimensions.get("window").height;
 
 export function PlacesSearchModal({
   visible,
@@ -49,45 +52,19 @@ export function PlacesSearchModal({
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [addedStops, setAddedStops] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const translateY = useRef(new Animated.Value(0)).current;
+  const inputRef = useRef<TextInput>(null);
 
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
       setQuery("");
       setPredictions([]);
-      translateY.setValue(0);
+      setAddedStops([]);
+      setTimeout(() => inputRef.current?.focus(), 100);
     }
-  }, [visible, translateY]);
-
-  // Swipe-down-to-close gesture
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => gesture.dy > 10,
-      onPanResponderMove: (_, gesture) => {
-        if (gesture.dy > 0) {
-          translateY.setValue(gesture.dy);
-        }
-      },
-      onPanResponderRelease: (_, gesture) => {
-        if (gesture.dy > 120 || gesture.vy > 0.5) {
-          Animated.timing(translateY, {
-            toValue: SCREEN_HEIGHT,
-            duration: 250,
-            useNativeDriver: true,
-          }).start(() => {
-            onClose();
-          });
-        } else {
-          Animated.spring(translateY, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  }, [visible]);
 
   const searchPlaces = (text: string) => {
     setQuery(text);
@@ -119,7 +96,11 @@ export function PlacesSearchModal({
         } else {
           setPredictions([]);
           if (data.status !== "ZERO_RESULTS") {
-            console.warn("[PlacesSearch] API status:", data.status, data.error_message);
+            console.warn(
+              "[PlacesSearch] API status:",
+              data.status,
+              data.error_message,
+            );
           }
         }
       } catch (err) {
@@ -145,13 +126,25 @@ export function PlacesSearchModal({
 
       if (data.status === "OK" && data.result?.geometry?.location) {
         const { lat, lng } = data.result.geometry.location;
-        onPlaceSelected({
+        const place: PlaceResult = {
           lat,
           lng,
           label: prediction.structured_formatting.main_text,
           address: prediction.description,
-        });
-        onClose();
+        };
+
+        onPlaceSelected(place);
+
+        // Show confirmation inline — don't close, let user add more
+        setAddedStops((prev) => [
+          prediction.structured_formatting.main_text,
+          ...prev,
+        ]);
+        setQuery("");
+        setPredictions([]);
+
+        // Re-focus input for next search
+        setTimeout(() => inputRef.current?.focus(), 200);
       }
     } catch (err) {
       console.warn("[PlacesSearch] Details fetch error:", err);
@@ -167,95 +160,168 @@ export function PlacesSearchModal({
       transparent={false}
       onRequestClose={onClose}
     >
-      <Animated.View
-        style={[styles.container, { transform: [{ translateY }] }]}
-      >
-        {/* Drag handle area */}
-        <View style={styles.dragArea} {...panResponder.panHandlers}>
-          <View style={styles.dragHandle} />
-        </View>
-
-        <SafeAreaView style={styles.safeArea}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Pressable
-              onPress={onClose}
-              style={styles.backButton}
-              accessibilityLabel="Close search"
-            >
-              <ChevronLeft color={colors.text} size={24} />
-            </Pressable>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Search for a place or address"
-                placeholderTextColor={colors.muted}
-                value={query}
-                onChangeText={searchPlaces}
-                autoFocus
-                returnKeyType="search"
-              />
-              {query.length > 0 && (
-                <Pressable
-                  onPress={() => {
-                    setQuery("");
-                    setPredictions([]);
-                  }}
-                  style={styles.clearButton}
-                >
-                  <X color={colors.muted} size={18} />
-                </Pressable>
-              )}
-            </View>
-          </View>
-
-          {/* Hint */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Add a new stop</Text>
-            <Text style={styles.sectionSubtitle}>
-              Search by place name or address within Metro Manila
-            </Text>
-          </View>
-
-          {/* Results */}
-          <View style={styles.results}>
-            {predictions.map((prediction) => (
+      <SafeAreaView style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable
+            onPress={onClose}
+            style={styles.backButton}
+            accessibilityLabel="Close search"
+          >
+            <ChevronLeft color={colors.text} size={24} />
+          </Pressable>
+          <View style={styles.inputContainer}>
+            <TextInput
+              ref={inputRef}
+              style={styles.textInput}
+              placeholder="Add or find stops"
+              placeholderTextColor={colors.muted}
+              value={query}
+              onChangeText={searchPlaces}
+              returnKeyType="search"
+            />
+            {query.length > 0 && (
               <Pressable
-                key={prediction.place_id}
-                style={styles.resultRow}
-                onPress={() => selectPlace(prediction)}
+                onPress={() => {
+                  setQuery("");
+                  setPredictions([]);
+                  inputRef.current?.focus();
+                }}
+                style={styles.clearButton}
               >
-                <View style={styles.resultIcon}>
-                  <MapPin color={colors.muted} size={18} />
-                </View>
-                <View style={styles.resultText}>
-                  <Text style={styles.resultMain} numberOfLines={1}>
-                    {prediction.structured_formatting.main_text}
-                  </Text>
-                  <Text style={styles.resultSecondary} numberOfLines={1}>
-                    {prediction.structured_formatting.secondary_text}
-                  </Text>
-                </View>
+                <X color={colors.muted} size={18} />
               </Pressable>
-            ))}
-            {query.length >= 2 && predictions.length === 0 && !loading && (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyText}>No places found</Text>
-              </View>
             )}
           </View>
-        </SafeAreaView>
-      </Animated.View>
+        </View>
+
+        <ScrollView
+          style={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Recently added stops confirmation */}
+          {addedStops.length > 0 && (
+            <View style={styles.addedSection}>
+              {addedStops.map((name, i) => (
+                <View key={`${name}-${i}`} style={styles.addedRow}>
+                  <View style={styles.addedInfo}>
+                    <Text style={styles.addedName} numberOfLines={1}>
+                      {name}
+                    </Text>
+                  </View>
+                  <View style={styles.addedBadge}>
+                    <CheckCircle2 color={colors.primary} size={16} />
+                    <Text style={styles.addedBadgeText}>Added</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Search results */}
+          {predictions.length > 0 && (
+            <View style={styles.resultsSection}>
+              <Text style={styles.sectionLabel}>Add a new stop</Text>
+              {predictions.map((prediction) => (
+                <Pressable
+                  key={prediction.place_id}
+                  style={styles.resultRow}
+                  onPress={() => selectPlace(prediction)}
+                >
+                  <View style={styles.resultIcon}>
+                    <MapPin color={colors.muted} size={18} />
+                  </View>
+                  <View style={styles.resultText}>
+                    <Text style={styles.resultMain} numberOfLines={1}>
+                      {prediction.structured_formatting.main_text}
+                    </Text>
+                    <Text style={styles.resultSecondary} numberOfLines={1}>
+                      {prediction.structured_formatting.secondary_text}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Empty state — no query yet */}
+          {query.length < 2 && predictions.length === 0 && addedStops.length === 0 && (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIcon}>
+                <Search color={colors.muted} size={32} />
+              </View>
+              <Text style={styles.emptyTitle}>Add a new stop</Text>
+              <Text style={styles.emptySubtitle}>
+                Search by place name or address{"\n"}within Metro Manila
+              </Text>
+            </View>
+          )}
+
+          {/* No results */}
+          {query.length >= 2 && predictions.length === 0 && !loading && (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyTitle}>No places found</Text>
+              <Text style={styles.emptySubtitle}>
+                Try a different search term
+              </Text>
+            </View>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <View style={styles.loadingState}>
+              <Text style={styles.loadingText}>Searching...</Text>
+            </View>
+          )}
+        </ScrollView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  addedBadge: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+  addedBadgeText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  addedInfo: {
+    flex: 1,
+  },
+  addedName: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  addedRow: {
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  addedSection: {
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
   backButton: {
     alignItems: "center",
     height: 44,
     justifyContent: "center",
     width: 44,
+  },
+  body: {
+    flex: 1,
   },
   clearButton: {
     alignItems: "center",
@@ -269,24 +335,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
   },
-  dragArea: {
+  emptyIcon: {
     alignItems: "center",
-    paddingTop: 10,
-    paddingBottom: 4,
-  },
-  dragHandle: {
-    backgroundColor: colors.border,
+    backgroundColor: colors.mutedSoft,
     borderRadius: radius.pill,
-    height: 5,
-    width: 40,
+    height: 72,
+    justifyContent: "center",
+    marginBottom: 16,
+    width: 72,
   },
   emptyState: {
     alignItems: "center",
-    paddingVertical: 32,
+    paddingTop: 80,
   },
-  emptyText: {
+  emptySubtitle: {
     color: colors.muted,
-    fontSize: 15,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 8,
+    textAlign: "center",
+  },
+  emptyTitle: {
+    color: colors.text,
+    fontSize: 17,
+    fontWeight: "900",
   },
   header: {
     alignItems: "center",
@@ -296,11 +368,19 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingBottom: 12,
     paddingHorizontal: 12,
-    paddingTop: 8,
+    paddingTop: 12,
   },
   inputContainer: {
     flex: 1,
     justifyContent: "center",
+  },
+  loadingState: {
+    alignItems: "center",
+    paddingVertical: 32,
+  },
+  loadingText: {
+    color: colors.muted,
+    fontSize: 15,
   },
   resultIcon: {
     alignItems: "center",
@@ -330,26 +410,16 @@ const styles = StyleSheet.create({
   resultText: {
     flex: 1,
   },
-  results: {
-    flex: 1,
+  resultsSection: {
+    paddingTop: 16,
   },
-  safeArea: {
-    flex: 1,
-  },
-  sectionHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  sectionSubtitle: {
+  sectionLabel: {
     color: colors.muted,
-    fontSize: 14,
-    marginTop: 4,
-  },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 17,
-    fontWeight: "900",
+    fontSize: 13,
+    fontWeight: "700",
+    paddingBottom: 8,
+    paddingHorizontal: 20,
+    textTransform: "uppercase",
   },
   textInput: {
     backgroundColor: colors.mutedSoft,
