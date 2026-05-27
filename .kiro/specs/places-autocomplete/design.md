@@ -8,7 +8,7 @@ This design describes the Google Places Autocomplete integration for RouteLite. 
 
 ### Component Structure
 
-```
+```text
 PlannerScreen.tsx
   └── PlacesSearchInput.tsx (new component)
         └── GooglePlacesAutocomplete (from react-native-google-places-autocomplete)
@@ -16,7 +16,7 @@ PlannerScreen.tsx
 
 ### Data Flow
 
-```
+```text
 User types → GooglePlacesAutocomplete queries Places API
                                           ↓
                         Suggestions displayed in dropdown

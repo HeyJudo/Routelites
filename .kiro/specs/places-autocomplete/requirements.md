@@ -44,10 +44,10 @@ This feature adds a Google Places Autocomplete search input component (`PlacesSe
 
 #### Acceptance Criteria
 
-1. WHEN a Stop object is constructed from Place_Details, THE PlacesSearchInput SHALL validate that the latitude and longitude fall within the NCR_Bounding_Box using the existing isInsideNCR utility function.
-2. IF the selected place is outside the NCR_Bounding_Box, THEN THE PlacesSearchInput SHALL display an inline error message stating "This location is outside Metro Manila".
-3. IF the selected place is outside the NCR_Bounding_Box, THEN THE PlacesSearchInput SHALL NOT invoke the onStopSelected callback.
-4. WHEN the selected place is inside the NCR_Bounding_Box, THE PlacesSearchInput SHALL invoke the onStopSelected callback with the constructed Stop object.
+1. WHEN a place is selected via PlacesSearchInput, THE PlannerScreen SHALL validate that the latitude and longitude fall within the NCR_Bounding_Box using the existing isInsideNCR utility function.
+2. IF the selected place is outside the NCR_Bounding_Box, THEN THE PlannerScreen SHALL display a toast message stating "This location is outside Metro Manila".
+3. IF the selected place is outside the NCR_Bounding_Box, THEN THE PlannerScreen SHALL NOT add the stop to the route draft store.
+4. WHEN the selected place is inside the NCR_Bounding_Box, THE PlannerScreen SHALL proceed to add the stop.
 
 ### Requirement 4: Callback Interface
 
@@ -55,9 +55,10 @@ This feature adds a Google Places Autocomplete search input component (`PlacesSe
 
 #### Acceptance Criteria
 
-1. THE PlacesSearchInput SHALL accept an onStopSelected prop of type `(stop: Stop) => void`.
-2. WHEN a valid stop is selected and passes NCR validation, THE PlacesSearchInput SHALL call onStopSelected exactly once with the Stop object.
-3. THE PlacesSearchInput SHALL clear the text input field after successfully invoking onStopSelected.
+1. THE PlacesSearchInput SHALL accept an onPlaceSelected prop of type `(place: PlaceResult) => void` where PlaceResult contains lat, lng, label, and address.
+2. WHEN a place is selected from the suggestions, THE PlacesSearchInput SHALL call onPlaceSelected exactly once with the PlaceResult object containing raw place data.
+3. THE PlacesSearchInput SHALL clear the text input field after successfully invoking onPlaceSelected.
+4. THE PlannerScreen SHALL perform NCR validation and duplicate-stop checking upon receiving the onPlaceSelected callback, and only then construct and persist the Stop object.
 
 ### Requirement 5: Error Handling
 

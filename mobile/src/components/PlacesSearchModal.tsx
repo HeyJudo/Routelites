@@ -54,6 +54,9 @@ export function PlacesSearchModal({
   const [loading, setLoading] = useState(false);
   const [addedStops, setAddedStops] = useState<string[]>([]);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestIdRef = useRef(0);
   const inputRef = useRef<TextInput>(null);
 
   // Reset state when modal opens
@@ -62,8 +65,13 @@ export function PlacesSearchModal({
       setQuery("");
       setPredictions([]);
       setAddedStops([]);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      focusTimeoutRef.current = setTimeout(() => inputRef.current?.focus(), 100);
     }
+    return () => {
+      if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (refocusTimeoutRef.current) clearTimeout(refocusTimeoutRef.current);
+    };
   }, [visible]);
 
   const searchPlaces = (text: string) => {
@@ -77,6 +85,7 @@ export function PlacesSearchModal({
     }
 
     debounceRef.current = setTimeout(async () => {
+      const currentRequestId = ++requestIdRef.current;
       try {
         setLoading(true);
         const url =
@@ -91,6 +100,9 @@ export function PlacesSearchModal({
         const res = await fetch(url);
         const data = await res.json();
 
+        // Only update state if this is still the latest request
+        if (currentRequestId !== requestIdRef.current) return;
+
         if (data.status === "OK" && data.predictions) {
           setPredictions(data.predictions);
         } else {
@@ -104,10 +116,13 @@ export function PlacesSearchModal({
           }
         }
       } catch (err) {
+        if (currentRequestId !== requestIdRef.current) return;
         console.warn("[PlacesSearch] Network error:", err);
         setPredictions([]);
       } finally {
-        setLoading(false);
+        if (currentRequestId === requestIdRef.current) {
+          setLoading(false);
+        }
       }
     }, 300);
   };
@@ -144,7 +159,7 @@ export function PlacesSearchModal({
         setPredictions([]);
 
         // Re-focus input for next search
-        setTimeout(() => inputRef.current?.focus(), 200);
+        refocusTimeoutRef.current = setTimeout(() => inputRef.current?.focus(), 200);
       }
     } catch (err) {
       console.warn("[PlacesSearch] Details fetch error:", err);

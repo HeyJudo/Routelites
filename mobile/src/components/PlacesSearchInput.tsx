@@ -18,13 +18,16 @@ type PlacesSearchInputProps = {
 
 const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? "";
 
+let _apiKeyWarned = false;
+
 export function PlacesSearchInput({
   onPlaceSelected,
   placeholder = "Search for a delivery stop",
 }: PlacesSearchInputProps) {
   const ref = useRef<any>(null);
 
-  if (!API_KEY) {
+  if (!API_KEY && !_apiKeyWarned) {
+    _apiKeyWarned = true;
     console.warn(
       "[PlacesSearchInput] EXPO_PUBLIC_GOOGLE_MAPS_API_KEY is not set. Autocomplete will not work.",
     );
