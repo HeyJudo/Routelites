@@ -16,6 +16,10 @@ import {
 
 import { AppHeader } from "../components/AppHeader";
 import { MapToast } from "../components/MapToast";
+import {
+  PlacesSearchModal,
+  type PlaceResult,
+} from "../components/PlacesSearchModal";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
@@ -47,10 +51,12 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
 
-  const collapsedHeight = Math.round(height * 0.38);
-  const expandedHeight = Math.round(height * 0.78);
+  const peekHeight = Math.round(height * 0.18);
+  const collapsedHeight = Math.round(height * 0.42);
+  const expandedHeight = Math.round(height * 0.85);
   const sheetHeight = useRef(new Animated.Value(collapsedHeight)).current;
   const currentSheetHeight = useRef(collapsedHeight);
   const stopModeLabel =
@@ -76,6 +82,24 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
     );
   };
 
+  const handlePlaceSelected = (place: PlaceResult) => {
+    if (!isInsideNCR(place.lat, place.lng)) {
+      setToastMsg("This location is outside Metro Manila");
+      return;
+    }
+    if (isDuplicateStop(stops, place.lat, place.lng)) {
+      setToastMsg("A stop near here already exists");
+      return;
+    }
+    addStop({
+      id: `stop_${Date.now()}`,
+      lat: place.lat,
+      lng: place.lng,
+      label: place.label,
+      address: place.address,
+    });
+  };
+
   const snapSheetTo = (nextHeight: number) => {
     currentSheetHeight.current = nextHeight;
     Animated.spring(sheetHeight, {
@@ -93,18 +117,50 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
         Math.abs(gestureState.dy) > 6,
       onPanResponderMove: (_event, gestureState) => {
         const nextHeight = Math.max(
-          collapsedHeight,
+          peekHeight,
           Math.min(expandedHeight, currentSheetHeight.current - gestureState.dy),
         );
         sheetHeight.setValue(nextHeight);
       },
       onPanResponderRelease: (_event, gestureState) => {
-        const midpoint = (collapsedHeight + expandedHeight) / 2;
         const releasedHeight = currentSheetHeight.current - gestureState.dy;
-        const targetHeight =
-          gestureState.vy < -0.35 || releasedHeight > midpoint
-            ? expandedHeight
-            : collapsedHeight;
+        const isFlickUp = gestureState.vy < -0.4;
+        const isFlickDown = gestureState.vy > 0.4;
+
+        let targetHeight: number;
+
+        if (isFlickUp) {
+          // Flick up: go to next level above current
+          if (currentSheetHeight.current <= peekHeight) {
+            targetHeight = collapsedHeight;
+          } else if (currentSheetHeight.current <= collapsedHeight) {
+            targetHeight = expandedHeight;
+          } else {
+            targetHeight = expandedHeight;
+          }
+        } else if (isFlickDown) {
+          // Flick down: go to next level below current
+          if (currentSheetHeight.current >= expandedHeight) {
+            targetHeight = collapsedHeight;
+          } else if (currentSheetHeight.current >= collapsedHeight) {
+            targetHeight = peekHeight;
+          } else {
+            targetHeight = peekHeight;
+          }
+        } else {
+          // No flick: snap to nearest level
+          const midLow = (peekHeight + collapsedHeight) / 2;
+          const midHigh = (collapsedHeight + expandedHeight) / 2;
+
+          if (releasedHeight < midLow) {
+            targetHeight = peekHeight;
+          } else if (releasedHeight < midHigh) {
+            targetHeight = collapsedHeight;
+          } else {
+            targetHeight = expandedHeight;
+          }
+        }
+
         snapSheetTo(targetHeight);
       },
     }),
@@ -132,6 +188,18 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
         >
           <View style={styles.handleWrap} {...panResponder.panHandlers}>
             <View style={styles.handle} />
+            {/* Peek bar — always visible, also draggable */}
+            <View style={styles.peekBar}>
+              <Text style={styles.peekStopCount}>
+                {stops.length === 0 ? "No stops yet" : `${stops.length} stop${stops.length > 1 ? "s" : ""}`}
+              </Text>
+              <Pressable
+                onPress={() => setShowSearch(true)}
+                style={styles.peekSearchButton}
+              >
+                <Search color={colors.primary} size={20} />
+              </Pressable>
+            </View>
           </View>
           <ScrollView
             contentContainerStyle={styles.sheetContent}
@@ -147,11 +215,14 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                 <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
               </View>
             </View>
-            <View style={styles.searchBox}>
+            <Pressable
+              style={styles.searchBox}
+              onPress={() => setShowSearch(true)}
+            >
               <Search color={colors.muted} size={20} />
               <Text style={styles.searchText}>Add delivery stop</Text>
               <Plus color={colors.primary} size={20} />
-            </View>
+            </Pressable>
             <View style={styles.statusCard}>
               <Text style={styles.statusTitle}>{stopModeLabel}</Text>
               <Text style={styles.statusChip}>PENDING</Text>
@@ -221,6 +292,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
         visible={showStopList}
         onClose={() => setShowStopList(false)}
       />
+      <PlacesSearchModal
+        visible={showSearch}
+        onClose={() => setShowSearch(false)}
+        onPlaceSelected={handlePlaceSelected}
+      />
     </View>
   );
 }
@@ -248,13 +324,33 @@ const styles = StyleSheet.create({
   },
   handleWrap: {
     alignItems: "center",
-    paddingBottom: 12,
-    paddingTop: 12,
+    paddingTop: 14,
   },
   mapArea: {
     backgroundColor: "#e6eeeb",
     flex: 1,
     overflow: "hidden",
+  },
+  peekBar: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 6,
+  },
+  peekSearchButton: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  peekStopCount: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: "800",
   },
   searchBox: {
     alignItems: "center",

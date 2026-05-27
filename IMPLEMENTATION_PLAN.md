@@ -267,8 +267,11 @@ Implementation status as of the latest Phase 2B work:
 - Phase 1: implemented on the demo graph; backend tests pass.
 - Phase 2A: implemented.
 - Phase 2B: implemented with `react-native-maps`, demo NCR data, numbered stop markers, long-press map stop creation, and a custom draggable Planner sheet.
-- Current next target: Phase 2C.
-- Phase 2D and Phase 3+ are not implemented yet.
+- Phase 2C: implemented with persisted route draft state, store persistence, stop add/remove/reorder, local validation, and settings actions.
+- Phase 2D: implemented for the stack flow with `mockOptimizeResponse`, Loading progress steps, and Results rendering mock route data and metadata.
+- The `Results` tab itself still shows an empty state until Phase 3 adds shared/live integration.
+- Current next target: Phase 3A.
+- Phase 3+ are not implemented yet.
 
 ---
 

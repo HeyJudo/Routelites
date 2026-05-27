@@ -19,8 +19,10 @@ The backend demo-graph algorithm pipeline is implemented and tested. The mobile 
 
 - Phase 2A: navigation and MVP screen shells are in place.
 - Phase 2B: the Planner and Set Store screens use `react-native-maps`, demo NCR store data, numbered stop markers, and long-press map stop creation.
+- Phase 2C: route draft state is shared through Zustand with AsyncStorage persistence, stop add/remove/reorder is implemented, and Settings can clear/reset/load demo data.
+- Phase 2D: the Planner -> Loading -> Results stack flow is implemented using a backend-shaped mock optimization response.
 
-The current next implementation target is **Phase 2C: Store and Stop State**. Phase 2C should move the Planner's local stop state into shared route draft state, persist the store location, support full stop viewing/removal/reordering, and keep all behavior local until Phase 2D/Phase 3.
+The `Results` tab screen is still a placeholder empty state; the implemented results experience currently lives in the stack flow entered from Planner. The current next implementation target is **Phase 3A: API Client**, followed by full frontend-backend integration and shared/live results wiring.
 
 Read these first:
 
