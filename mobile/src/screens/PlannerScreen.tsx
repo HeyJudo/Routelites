@@ -1,7 +1,7 @@
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { MapPinned, Plus, Route, Search, Store } from "lucide-react-native";
+import { MapPinned, Plus, Route, Search, Store, Trash2 } from "lucide-react-native";
 import { useRef, useState } from "react";
 import {
   Animated,
@@ -48,6 +48,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const stops = useRouteDraftStore((s) => s.stops);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
   const addStop = useRouteDraftStore((s) => s.addStop);
+  const removeStop = useRouteDraftStore((s) => s.removeStop);
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
@@ -82,14 +83,14 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
     );
   };
 
-  const handlePlaceSelected = (place: PlaceResult) => {
+  const handlePlaceSelected = (place: PlaceResult): boolean => {
     if (!isInsideNCR(place.lat, place.lng)) {
       setToastMsg("This location is outside Metro Manila");
-      return;
+      return false;
     }
     if (isDuplicateStop(stops, place.lat, place.lng)) {
       setToastMsg("A stop near here already exists");
-      return;
+      return false;
     }
     addStop({
       id: `stop_${Date.now()}`,
@@ -98,6 +99,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
       label: place.label,
       address: place.address,
     });
+    return true;
   };
 
   const snapSheetTo = (nextHeight: number) => {
@@ -255,6 +257,14 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                         {stop.address}
                       </Text>
                     </View>
+                    <Pressable
+                      onPress={() => removeStop(stop.id)}
+                      hitSlop={8}
+                      accessibilityLabel={`Remove ${stop.label}`}
+                      style={styles.deleteButton}
+                    >
+                      <Trash2 color={colors.danger} size={16} />
+                    </Pressable>
                   </View>
                 ))}
                 {stops.length > 4 ? (
@@ -315,6 +325,12 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.background,
     flex: 1,
+  },
+  deleteButton: {
+    alignItems: "center",
+    height: 32,
+    justifyContent: "center",
+    width: 32,
   },
   handle: {
     backgroundColor: colors.border,

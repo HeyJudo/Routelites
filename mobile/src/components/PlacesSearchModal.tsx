@@ -30,7 +30,7 @@ export type PlaceResult = {
 type PlacesSearchModalProps = {
   visible: boolean;
   onClose: () => void;
-  onPlaceSelected: (place: PlaceResult) => void;
+  onPlaceSelected: (place: PlaceResult) => boolean;
 };
 
 type Prediction = {
@@ -148,13 +148,16 @@ export function PlacesSearchModal({
           address: prediction.description,
         };
 
-        onPlaceSelected(place);
+        const wasAdded = onPlaceSelected(place);
 
-        // Show confirmation inline — don't close, let user add more
-        setAddedStops((prev) => [
-          prediction.structured_formatting.main_text,
-          ...prev,
-        ]);
+        if (wasAdded) {
+          // Show confirmation inline — don't close, let user add more
+          setAddedStops((prev) => [
+            prediction.structured_formatting.main_text,
+            ...prev,
+          ]);
+        }
+
         setQuery("");
         setPredictions([]);
 
