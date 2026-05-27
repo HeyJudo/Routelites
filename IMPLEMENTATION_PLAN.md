@@ -261,17 +261,18 @@ Current planning date: May 20, 2026.
 | May 31-June 2 | Phase 5 |
 | June 3-4 | Buffer, rehearsal, docs, slides, fixes |
 
-Implementation status as of the latest Phase 2B work:
+Implementation status as of the latest work:
 
 - Phase 0: implemented.
 - Phase 1: implemented on the demo graph; backend tests pass.
 - Phase 2A: implemented.
-- Phase 2B: implemented with `react-native-maps`, demo NCR data, numbered stop markers, long-press map stop creation, and a custom draggable Planner sheet.
-- Phase 2C: implemented with persisted route draft state, store persistence, stop add/remove/reorder, local validation, and settings actions.
+- Phase 2B: implemented with `react-native-maps`, demo NCR data, numbered stop markers, long-press map stop creation, and a custom draggable Planner sheet. Sheet now supports 3 snap levels (peek/collapsed/expanded) for full-map viewing.
+- Phase 2C: implemented with persisted route draft state, store persistence, stop add/remove/reorder, local validation, and settings actions. Stop deletion is now available directly from the Planner sheet stop list.
 - Phase 2D: implemented for the stack flow with `mockOptimizeResponse`, Loading progress steps, and Results rendering mock route data and metadata.
+- Google Places Autocomplete: implemented as a full-screen search modal (`PlacesSearchModal`) with Philippines/NCR-biased results, inline "Added" confirmation, NCR boundary validation, duplicate stop prevention, and request race-condition handling. The `PlacesSearchInput` inline component also exists but the modal is the primary UX.
 - The `Results` tab itself still shows an empty state until Phase 3 adds shared/live integration.
-- Current next target: Phase 3A.
-- Phase 3+ are not implemented yet.
+- Current next target: Phase 3A (API client to wire real backend optimization).
+- Phase 3B/3C and Phase 4+ are not implemented yet.
 
 ---
 

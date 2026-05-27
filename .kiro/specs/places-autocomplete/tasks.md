@@ -62,28 +62,37 @@ This plan implements the Google Places Autocomplete search input for the RouteLi
     - Pass `handlePlaceSelected` as the `onPlaceSelected` prop
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2_
 
-- [ ] 4. Checkpoint - Verify integration
-  - Ensure the app builds without errors, ask the user if questions arise.
+- [x] 4. Checkpoint - Verify integration
+  - App builds without errors, Places search works end-to-end.
 
-- [ ] 5. Write automated tests
-  - [ ]* 5.1 Write unit tests for NCR validation logic
+- [x] 5. UI Improvements (post-integration)
+  - [x] 5.1 Replaced inline PlacesSearchInput with full-screen PlacesSearchModal
+  - [x] 5.2 Added inline "✓ Added" confirmation cards inside the search modal
+  - [x] 5.3 Fixed false "Added" confirmation for outside-NCR locations (onPlaceSelected returns boolean)
+  - [x] 5.4 Added request-versioning to prevent stale predictions from race conditions
+  - [x] 5.5 Added timeout cleanup on unmount to prevent memory leaks
+  - [x] 5.6 Implemented 3-level draggable sheet (peek/collapsed/expanded) for full-map viewing
+  - [x] 5.7 Added stop delete (trash icon) directly in the Planner sheet stop list
+
+- [ ] 6. Write automated tests (optional)
+  - [ ]* 6.1 Write unit tests for NCR validation logic
     - Test that coordinates inside NCR bounding box pass validation
     - Test that coordinates outside NCR bounding box are rejected
     - Test boundary edge cases (exact boundary coordinates)
     - _Requirements: 3.1, 3.2, 3.3, 3.4_
 
-  - [ ]* 5.2 Write unit tests for duplicate stop detection
+  - [ ]* 6.2 Write unit tests for duplicate stop detection
     - Test that stops with same coordinates are detected as duplicates
     - Test that stops with different coordinates are not duplicates
     - _Requirements: 3.2_
 
-  - [ ]* 5.3 Write unit tests for handlePlaceSelected integration logic
+  - [ ]* 6.3 Write unit tests for handlePlaceSelected integration logic
     - Test that valid NCR place creates a stop with correct shape
     - Test that outside-NCR place triggers rejection toast
     - Test that duplicate place triggers duplicate toast
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.1, 4.2_
 
-- [ ] 6. Final checkpoint - Ensure all tests pass
+- [ ] 7. Final checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 ## Notes

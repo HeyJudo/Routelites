@@ -2,7 +2,7 @@
 
 ## Overview
 
-This design describes the Google Places Autocomplete integration for RouteLite. The feature adds a `PlacesSearchInput` component that wraps `react-native-google-places-autocomplete` and integrates into the existing Planner screen's search box area. The component is built as a standalone, reusable module that emits place selection events to the parent.
+This design describes the Google Places Autocomplete integration for RouteLite. The feature uses a full-screen search modal (`PlacesSearchModal`) that opens when the user taps the search box on the Planner screen. The modal handles autocomplete queries directly via the Google Places API (not through the `react-native-google-places-autocomplete` library wrapper), provides inline "Added" confirmation, and emits place selection events to the parent for NCR validation. A legacy inline component (`PlacesSearchInput`) also exists but is not used in the primary flow.
 
 ## Architecture
 
@@ -10,27 +10,32 @@ This design describes the Google Places Autocomplete integration for RouteLite. 
 
 ```text
 PlannerScreen.tsx
-  └── PlacesSearchInput.tsx (new component)
-        └── GooglePlacesAutocomplete (from react-native-google-places-autocomplete)
+  ├── Search box (Pressable tap target) → opens PlacesSearchModal
+  └── PlacesSearchModal.tsx (full-screen Modal)
+        ├── TextInput (search query)
+        ├── Predictions list (from Google Places Autocomplete API)
+        └── Added stops confirmation cards
 ```
 
 ### Data Flow
 
 ```text
-User types → GooglePlacesAutocomplete queries Places API
-                                          ↓
-                        Suggestions displayed in dropdown
-                                          ↓
-                    User selects a suggestion
-                                          ↓
-            Place details (lat, lng, name, address) returned
-                                          ↓
-        onPlaceSelected callback fires to PlannerScreen
-                                          ↓
-    PlannerScreen validates: isInsideNCR? isDuplicateStop?
-                                          ↓
-              If valid → addStop(stop) to Zustand store
-              If invalid → show MapToast error message
+User taps search box → PlacesSearchModal opens
+                                ↓
+User types → direct fetch to Google Places Autocomplete API
+                                ↓
+            Suggestions displayed in scrollable list
+                                ↓
+        User taps a suggestion
+                                ↓
+    fetch Place Details API → extract lat, lng, label, address
+                                ↓
+    onPlaceSelected callback fires to PlannerScreen (returns boolean)
+                                ↓
+PlannerScreen validates: isInsideNCR? isDuplicateStop?
+                                ↓
+    If valid → addStop(stop), return true → modal shows "✓ Added"
+    If invalid → show MapToast, return false → no confirmation shown
 ```
 
 ## Detailed Design
@@ -138,6 +143,7 @@ const handlePlaceSelected = (place: PlaceResult) => {
 
 | File | Action | Description |
 |------|--------|-------------|
-| `mobile/src/components/PlacesSearchInput.tsx` | CREATE | Standalone autocomplete component |
-| `mobile/src/screens/PlannerScreen.tsx` | MODIFY | Replace static search box with PlacesSearchInput |
-| `mobile/package.json` | MODIFY | Add `react-native-google-places-autocomplete` dependency |
+| `mobile/src/components/PlacesSearchModal.tsx` | CREATE | Full-screen search modal with direct API calls, confirmation UI, race-condition handling |
+| `mobile/src/components/PlacesSearchInput.tsx` | CREATE | Legacy inline autocomplete component (kept as fallback, not used in primary flow) |
+| `mobile/src/screens/PlannerScreen.tsx` | MODIFY | Added search box tap target, PlacesSearchModal integration, stop delete buttons, 3-level sheet |
+| `mobile/package.json` | MODIFY | Added `react-native-google-places-autocomplete` dependency |
