@@ -1,7 +1,7 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, StyleSheet, Text, View } from "react-native";
 
 import { LogoMark } from "../components/LogoMark";
 import { colors } from "../theme";
@@ -10,28 +10,76 @@ import type { RootStackParamList } from "../navigation/types";
 type SplashScreenProps = NativeStackScreenProps<RootStackParamList, "Splash">;
 
 export function SplashScreen({ navigation }: SplashScreenProps) {
+  const progressWidth = useRef(new Animated.Value(0)).current;
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+  const contentTranslateY = useRef(new Animated.Value(20)).current;
+
   useEffect(() => {
+    // Fade in content
+    Animated.parallel([
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(contentTranslateY, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Animate progress bar
+    Animated.timing(progressWidth, {
+      toValue: 100,
+      duration: 1200,
+      useNativeDriver: false,
+    }).start();
+
+    // Navigate after animation
     const timeoutId = setTimeout(() => {
       navigation.replace("Welcome");
-    }, 900);
+    }, 1400);
 
     return () => clearTimeout(timeoutId);
-  }, [navigation]);
+  }, [navigation, progressWidth, contentOpacity, contentTranslateY]);
+
+  const widthInterpolated = progressWidth.interpolate({
+    inputRange: [0, 100],
+    outputRange: ["0%", "100%"],
+  });
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      <View style={styles.center}>
+      
+      <Animated.View
+        style={[
+          styles.center,
+          {
+            opacity: contentOpacity,
+            transform: [{ translateY: contentTranslateY }],
+          },
+        ]}
+      >
         <LogoMark showWordmark={false} size="lg" />
         <Text style={styles.title}>RouteLite</Text>
         <Text style={styles.subtitle}>
           Smarter delivery routes for Metro Manila
         </Text>
-      </View>
+      </Animated.View>
+
       <View style={styles.footer}>
-        <Text style={styles.loadingText}>OPTIMIZING DATA</Text>
+        <Text style={styles.loadingText}>GETTING READY</Text>
         <View style={styles.track}>
-          <View style={styles.progress} />
+          <Animated.View
+            style={[
+              styles.progress,
+              {
+                width: widthInterpolated,
+              },
+            ]}
+          />
         </View>
       </View>
     </View>
@@ -53,20 +101,21 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     bottom: 70,
+    left: 0,
     position: "absolute",
+    right: 0,
   },
   loadingText: {
     color: colors.muted,
     fontFamily: "monospace",
     fontSize: 11,
-    letterSpacing: 0,
+    letterSpacing: 1,
     marginBottom: 12,
   },
   progress: {
     backgroundColor: colors.primary,
-    borderRadius: 999,
-    height: 4,
-    width: 64,
+    borderRadius: 4,
+    height: "100%",
   },
   subtitle: {
     color: colors.muted,
@@ -82,9 +131,10 @@ const styles = StyleSheet.create({
   },
   track: {
     backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 4,
-    width: 168,
+    borderRadius: 4,
+    height: 6,
+    marginHorizontal: 60,
+    overflow: "hidden",
+    width: 200,
   },
 });
-

@@ -4,6 +4,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Welcome: undefined;
   SetStore: undefined;
+  OnboardingStops: undefined;
   MainTabs: { screen?: string; params?: object } | undefined;
   Loading: undefined;
   Results: { response: OptimizeResponse };
