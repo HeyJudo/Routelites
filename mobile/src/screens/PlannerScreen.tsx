@@ -21,7 +21,7 @@ import {
   type PlaceResult,
 } from "../components/PlacesSearchModal";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { RouteMap } from "../components/RouteMap";
+import { RouteMap, type RouteMapHandle } from "../components/RouteMap";
 import { ScreenShell } from "../components/ScreenShell";
 import { StopListModal } from "../components/StopListModal";
 import { createMapStop, demoStore } from "../data/demoRoute";
@@ -54,6 +54,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const [showStopList, setShowStopList] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
+  const mapRef = useRef<RouteMapHandle>(null);
 
   const peekHeight = Math.round(height * 0.18);
   const collapsedHeight = Math.round(height * 0.42);
@@ -173,7 +174,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
       <AppHeader showMenu />
       <ScreenShell padded={false}>
         <View style={styles.mapArea}>
-          <RouteMap onLongPress={addMapStop} stops={stops} store={activeStore} />
+          <RouteMap ref={mapRef} onLongPress={addMapStop} stops={stops} store={activeStore} />
           <MapToast
             message={toastMsg}
             visible={toastMsg !== ""}
@@ -208,7 +209,11 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.title}>Ready to plan today's route?</Text>
-            <View style={styles.storeCard}>
+            <Pressable
+              style={styles.storeCard}
+              onPress={() => mapRef.current?.focusLocation(activeStore.lat, activeStore.lng)}
+              accessibilityLabel={`Focus map on ${activeStore.label}`}
+            >
               <View style={styles.storeIcon}>
                 <Store color={colors.primaryDark} size={20} />
               </View>
@@ -216,7 +221,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                 <Text style={styles.cardTitle}>{activeStore.label}</Text>
                 <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
               </View>
-            </View>
+            </Pressable>
             <Pressable
               style={styles.searchBox}
               onPress={() => setShowSearch(true)}
@@ -247,7 +252,12 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
             {stops.length > 0 ? (
               <View style={styles.stopList}>
                 {stops.slice(0, 4).map((stop, index) => (
-                  <View key={stop.id} style={styles.stopRow}>
+                  <Pressable
+                    key={stop.id}
+                    style={styles.stopRow}
+                    onPress={() => mapRef.current?.focusLocation(stop.lat, stop.lng)}
+                    accessibilityLabel={`Focus map on ${stop.label}`}
+                  >
                     <View style={styles.stopNumber}>
                       <Text style={styles.stopNumberText}>{index + 1}</Text>
                     </View>
@@ -265,7 +275,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                     >
                       <Trash2 color={colors.danger} size={16} />
                     </Pressable>
-                  </View>
+                  </Pressable>
                 ))}
                 {stops.length > 4 ? (
                   <Pressable onPress={() => setShowStopList(true)}>
