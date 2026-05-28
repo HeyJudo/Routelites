@@ -78,18 +78,9 @@ export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps
           </View>
         </FadeSlideView>
 
-        <FadeSlideView delay={350}>
-          <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>💡 Pro tip</Text>
-            <Text style={styles.infoText}>
-              Add 3-10 stops for the best optimization results. RouteLite will
-              find the shortest route that visits all your stops.
-            </Text>
-          </View>
-        </FadeSlideView>
       </View>
 
-      <FadeSlideView delay={400} style={styles.footer}>
+      <FadeSlideView delay={350} style={styles.footer}>
         <PrimaryButton onPress={handleStartPlanning}>
           Start planning
         </PrimaryButton>
@@ -121,22 +112,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingBottom: 40,
     paddingHorizontal: 24,
-  },
-  infoCard: {
-    backgroundColor: colors.primarySoft,
-    borderRadius: radius.md,
-    gap: 6,
-    padding: 16,
-  },
-  infoText: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  infoTitle: {
-    color: colors.primaryDark,
-    fontSize: 14,
-    fontWeight: "800",
   },
   stepLabel: {
     color: colors.primary,
