@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 
 import { LogoMark } from "../components/LogoMark";
 import { LoadingScreen } from "../screens/LoadingScreen";
+import { OnboardingStopsScreen } from "../screens/OnboardingStopsScreen";
 import { ResultsScreen } from "../screens/ResultsScreen";
 import { SetStoreScreen } from "../screens/SetStoreScreen";
 import { SplashScreen } from "../screens/SplashScreen";
@@ -69,6 +70,7 @@ export function AppNavigator() {
         <Stack.Screen name="Splash" component={SplashScreen} />
         <Stack.Screen name="Welcome" component={WelcomeScreen} />
         <Stack.Screen name="SetStore" component={SetStoreScreen} />
+        <Stack.Screen name="OnboardingStops" component={OnboardingStopsScreen} />
         <Stack.Screen name="MainTabs" component={MainTabs} />
         <Stack.Screen
           name="Loading"

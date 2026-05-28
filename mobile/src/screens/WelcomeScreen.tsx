@@ -2,9 +2,11 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ArrowRight } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { LogoMark } from "../components/LogoMark";
+import { FadeSlideView } from "../components/FadeSlideView";
+import { OnboardingHeader } from "../components/OnboardingHeader";
+import { OnboardingIllustration } from "../components/OnboardingIllustration";
 import { PrimaryButton } from "../components/PrimaryButton";
-import { colors, radius } from "../theme";
+import { colors, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, "Welcome">;
@@ -12,30 +14,46 @@ type WelcomeScreenProps = NativeStackScreenProps<RootStackParamList, "Welcome">;
 export function WelcomeScreen({ navigation }: WelcomeScreenProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <LogoMark />
+      <OnboardingHeader progress={0} showProgress={false} />
+      
+      <View style={styles.content}>
+        <FadeSlideView delay={100}>
+          <OnboardingIllustration variant="welcome" />
+        </FadeSlideView>
+
+        <FadeSlideView delay={200} style={styles.textContent}>
+          <Text style={styles.title}>Plan smarter delivery routes</Text>
+          <Text style={styles.subtitle}>
+            Add your stops, let RouteLite find the best order, and see how much
+            distance you save compared to your original route.
+          </Text>
+        </FadeSlideView>
+
+        <FadeSlideView delay={300} style={styles.features}>
+          <View style={styles.featureRow}>
+            <View style={styles.featureDot} />
+            <Text style={styles.featureText}>Optimized stop ordering</Text>
+          </View>
+          <View style={styles.featureRow}>
+            <View style={styles.featureDot} />
+            <Text style={styles.featureText}>Real road distances</Text>
+          </View>
+          <View style={styles.featureRow}>
+            <View style={styles.featureDot} />
+            <Text style={styles.featureText}>Metro Manila coverage</Text>
+          </View>
+        </FadeSlideView>
       </View>
-      <View style={styles.mapPreview}>
-        <View style={styles.river} />
-        <View style={[styles.road, styles.roadOne]} />
-        <View style={[styles.road, styles.roadTwo]} />
-        <View style={[styles.road, styles.roadThree]} />
-      </View>
-      <View style={styles.sheet}>
-        <View style={styles.handle} />
-        <Text style={styles.title}>Plan better delivery routes</Text>
-        <Text style={styles.copy}>
-          Add stops, optimize the order, and compare your route against the
-          original input order.
-        </Text>
+
+      <FadeSlideView delay={400} style={styles.footer}>
         <PrimaryButton
           icon={<ArrowRight color={colors.card} size={20} />}
           onPress={() => navigation.navigate("SetStore")}
         >
           Get started
         </PrimaryButton>
-        <Text style={styles.demoText}>Try demo route</Text>
-      </View>
+        <Text style={styles.footerNote}>Takes less than a minute to set up</Text>
+      </FadeSlideView>
     </View>
   );
 }
@@ -45,83 +63,60 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     flex: 1,
   },
-  copy: {
-    color: colors.muted,
-    fontSize: 17,
-    lineHeight: 25,
-    marginBottom: 28,
-    textAlign: "center",
-  },
-  demoText: {
-    color: colors.primary,
-    fontSize: 16,
-    fontWeight: "800",
-    marginTop: 26,
-    textAlign: "center",
-  },
-  handle: {
-    alignSelf: "center",
-    backgroundColor: colors.border,
-    borderRadius: 999,
-    height: 4,
-    marginBottom: 28,
-    width: 32,
-  },
-  header: {
-    alignItems: "center",
-    paddingBottom: 16,
-    paddingTop: 52,
-  },
-  mapPreview: {
-    backgroundColor: "#edf5f5",
+  content: {
     flex: 1,
-    overflow: "hidden",
+    gap: spacing.xl,
+    paddingHorizontal: 24,
+    paddingTop: 16,
   },
-  river: {
-    backgroundColor: "#bdeff4",
-    borderRadius: 80,
-    height: 84,
-    left: -30,
-    position: "absolute",
-    top: 310,
-    transform: [{ rotate: "-18deg" }],
-    width: 460,
+  featureDot: {
+    backgroundColor: colors.primary,
+    borderRadius: 4,
+    height: 8,
+    width: 8,
   },
-  road: {
-    backgroundColor: "#ffffff",
-    borderRadius: 999,
-    height: 12,
-    opacity: 0.85,
-    position: "absolute",
-    width: 440,
+  featureRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
   },
-  roadOne: {
-    left: -60,
-    top: 120,
-    transform: [{ rotate: "32deg" }],
+  featureText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "600",
   },
-  roadThree: {
-    left: -10,
-    top: 255,
-    transform: [{ rotate: "-8deg" }],
+  features: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: 18,
   },
-  roadTwo: {
-    left: -25,
-    top: 205,
-    transform: [{ rotate: "-28deg" }],
+  footer: {
+    gap: spacing.md,
+    paddingBottom: 40,
+    paddingHorizontal: 24,
   },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: 28,
+  footerNote: {
+    color: colors.muted,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  subtitle: {
+    color: colors.muted,
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: "center",
+  },
+  textContent: {
+    alignItems: "center",
+    gap: spacing.md,
   },
   title: {
     color: colors.text,
-    fontSize: 25,
+    fontSize: 26,
     fontWeight: "900",
-    marginBottom: 14,
     textAlign: "center",
   },
 });
-
