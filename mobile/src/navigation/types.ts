@@ -1,4 +1,5 @@
-import type { OptimizeResponse } from "../types/api";
+//import type { OptimizeResponse } from "../types/api";
+import type { OptimizeResponse } from "../api/routes";
 
 export type RootStackParamList = {
   Splash: undefined;

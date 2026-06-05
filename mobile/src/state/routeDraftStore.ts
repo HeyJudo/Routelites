@@ -40,7 +40,14 @@ export const useRouteDraftStore = create<RouteDraftState>()(
           return { stops: next };
         }),
       clearStops: () => set({ stops: [] }),
-      loadDemoRoute: () => set({ storeLocation: demoStore, stops: demoStops }),
+     // loadDemoRoute: () => set({ storeLocation: demoStore, stops: demoStops }),
+     loadDemoRoute: () => {
+        // Clear any existing cached layout first
+        set({ storeLocation: null, stops: [] });
+  
+          // Set the fresh data directly from your updated demoRoute file
+          set({ storeLocation: demoStore, stops: demoStops });
+        },
       setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {

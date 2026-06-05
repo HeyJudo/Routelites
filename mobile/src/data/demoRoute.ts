@@ -10,31 +10,31 @@ export const metroManilaRegion = {
 export const demoStore: StoreLocation = {
   address: "Pureza, Santa Mesa, Manila",
   label: "Depot Alpha",
-  lat: 14.6018,
-  lng: 121.0051,
+  lat: 14.5995,
+  lng: 120.9842,
 };
 
 export const demoStops: Stop[] = [
   {
     address: "Nicanor Reyes St, Sampaloc, Manila",
-    id: "stop_1",
-    label: "Stop 1",
-    lat: 14.6042,
-    lng: 120.9885,
+    id: "stop_a",
+    label: "Stop A",
+    lat: 14.6010,
+    lng: 120.9850,
   },
   {
     address: "Pedro Gil St, Ermita, Manila",
-    id: "stop_2",
-    label: "Stop 2",
-    lat: 14.5795,
-    lng: 120.9849,
+    id: "stop_b",
+    label: "Stop B",
+    lat: 14.6030,
+    lng: 120.9870,
   },
   {
     address: "Shaw Blvd, Mandaluyong",
-    id: "stop_3",
-    label: "Stop 3",
-    lat: 14.5903,
-    lng: 121.0339,
+    id: "stop_c",
+    label: "Stop C",
+    lat: 14.6050,
+    lng: 120.9890,
   },
 ];
 

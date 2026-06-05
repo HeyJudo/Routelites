@@ -1,12 +1,17 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { CheckCircle2, ChevronLeft, Circle, Route } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { LogoMark } from "../components/LogoMark";
 import { mockOptimizeResponse } from "../mocks/mockOptimizeResponse";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
+
+import { optimizeRoute, OptimizeRequest, OptimizeResponse } from "../api/routes";
+import { ApiError } from "../api/clients";
+import { useRouteDraftStore } from "../state/routeDraftStore";
+
 
 type LoadingScreenProps = NativeStackScreenProps<RootStackParamList, "Loading">;
 
@@ -15,22 +20,25 @@ const STEPS = [
   "Calculating shortest paths",
   "Finding best stop order",
 ];
-const STEP_DELAY_MS = 1200;
+const STEP_DELAY_MS = 720;
 
 export function LoadingScreen({ navigation }: LoadingScreenProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+  const stops = useRouteDraftStore((s) => s.stops);
+
   useEffect(() => {
+
     const advance = () => {
       setCurrentStep((prev) => {
         const next = prev + 1;
-        if (next >= STEPS.length) {
-          timerRef.current = setTimeout(() => {
-            navigation.replace("Results", { response: mockOptimizeResponse });
-          }, STEP_DELAY_MS);
-          return prev;
-        }
+        if (next >= STEPS.length)   return prev;
+        //  timerRef.current = setTimeout(() => {
+          //  navigation.replace("Results", { response: mockOptimizeResponse });
+          //}, STEP_DELAY_MS);
+        
         timerRef.current = setTimeout(advance, STEP_DELAY_MS);
         return next;
       });
@@ -39,7 +47,69 @@ export function LoadingScreen({ navigation }: LoadingScreenProps) {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [navigation]);
+  }, []);
+
+useEffect(() => {
+    let cancelled = false;
+
+    async function callBackend() {
+      try {
+        // Construct the expected payload shape
+        const request: OptimizeRequest = {
+          store: {
+            lat: storeLocation!.lat,
+            lng: storeLocation!.lng,
+            lon: storeLocation!.lng, //
+            label: storeLocation!.label || "Store",
+          },
+          stops: stops.map((s) => ({
+            id: s.id,
+            lat: s.lat,
+            lng: s.lng,
+            lon: s.lng, //
+            label: s.label || "Stop",
+          })),
+        };
+
+        console.log("Sending optimize request to backend...");
+        const [response] = await Promise.all([optimizeRoute(request),
+        new Promise <void> (resolve => setTimeout(resolve, STEPS.length * STEP_DELAY_MS)),
+        ]);
+        
+        if (!cancelled) {
+          console.log("🎉 Route optimization successful!");
+           navigation.replace("Results", { response});
+        }
+      } catch (error) {
+        if (!cancelled) {
+    let message = "Something went wrong. Try again.";
+
+    if (error instanceof ApiError) {
+      if (error.status === 422) {
+        message = (error.body as any)?.detail ?? "Invalid request. Check your stops and try again.";
+      } else if (error.status === 501) {
+        message = "Routes with 11+ stops are not supported yet. Use 1-10 stops.";
+      } else if (error.status === 500) {
+        message = "Something went wrong. Try again.";
+      }
+    } else {
+      message = "Could not reach the server. Is the backend running?";
+    }
+
+    Alert.alert("Optimization failed", message, [
+      { text: "Go back", onPress: () => navigation.goBack() },
+    ]);
+  }
+}
+    }
+
+    callBackend();
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [navigation, storeLocation, stops]);
+
 
   return (
     <View style={styles.container}>

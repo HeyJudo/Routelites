@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { ChevronLeft, Info } from "lucide-react-native";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 
@@ -22,6 +22,7 @@ function legsToCoords(legs: RouteLeg[]) {
 
 export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const { response } = route.params;
+
   const [mode, setMode] = useState<ViewMode>("optimized");
   const [showDetails, setShowDetails] = useState(false);
 
@@ -30,37 +31,58 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
 
   const activeRoute =
     mode === "naive" ? response.naive_route : response.optimized_route;
+  
+  const mapRef = useRef<MapView>(null);
+  const fitRoute = () => {
+  const coords = mode === "naive" ? naiveCoords : optimizedCoords;
+    if (coords.length > 0) {
+      mapRef.current?.fitToCoordinates(coords, {
+        edgePadding: { top: 100, right: 50, bottom: 50, left: 50 },
+        animated: true,
+      });
+    }
+  };
+
+  useEffect(() => {
+    fitRoute();
+  }, [mode]);
 
   return (
     <View style={styles.container}>
       {/* Map */}
       <View style={styles.mapArea}>
         <MapView
+          ref={mapRef}
           initialRegion={metroManilaRegion}
           showsCompass={false}
           showsMyLocationButton={false}
           style={StyleSheet.absoluteFill}
         >
-          {(mode === "optimized" || mode === "compare") && (
-            <Polyline
-              coordinates={optimizedCoords}
-              strokeColor={colors.primary}
-              strokeWidth={4}
-            />
-          )}
-          {(mode === "naive" || mode === "compare") && (
+           {(mode === "naive" || mode === "compare") && (
             <Polyline
               coordinates={naiveCoords}
               strokeColor="#9e9e9e"
               strokeWidth={3}
               lineDashPattern={[8, 6]}
+              zIndex={1}
             />
           )}
+
+          {(mode === "optimized" || mode === "compare") && (
+            <Polyline
+              coordinates={optimizedCoords}
+              strokeColor={colors.primary}
+              strokeWidth={4}
+              zIndex={2}
+            />
+          )}
+         
           {/* Stop markers from optimized order */}
-          {response.optimized_route.legs.map((leg, i) =>
+          {response.optimized_route.legs.map((leg: RouteLeg, i: number) =>
             i === 0 ? (
               <Marker
-                key="store-start"
+               // key="store-start"
+              key={`store-start-marker-${i}`}
                 coordinate={{
                   latitude: leg.path[0].lat,
                   longitude: leg.path[0].lng,
@@ -73,26 +95,29 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
               </Marker>
             ) : null,
           )}
-          {activeRoute.order
-            .filter((id) => id !== "store")
-            .map((id, i) => {
-              const leg = response.optimized_route.legs.find(
-                (l) => l.to === id,
-              );
+          {(mode === "compare" ? [response.optimized_route, response.naive_route] : [activeRoute])
+             .flatMap((route, routeIdx) =>
+             route.order
+             .filter((id: string) => id !== "store")
+             .map((id: string, i: number) => {
+             const leg = route.legs.find((l: RouteLeg) => l.to === id);
               if (!leg) return null;
               const lastPt = leg.path[leg.path.length - 1];
               return (
                 <Marker
-                  key={id}
+                 // key={id}
+                key={`marker-${id}-${i}`}
                   coordinate={{ latitude: lastPt.lat, longitude: lastPt.lng }}
-                  title={id}
+                 // title={id}
+                  title={id === "store" ? "Store" : id.replace("_", " ")}
                 >
                   <View style={styles.stopMarker}>
                     <Text style={styles.stopMarkerText}>{i + 1}</Text>
                   </View>
                 </Marker>
               );
-            })}
+            })
+          )}
         </MapView>
         {/* Back button */}
         <Pressable
@@ -159,7 +184,7 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
 
         {/* Stop order list */}
         <ScrollView style={styles.stopList} showsVerticalScrollIndicator={false}>
-          {activeRoute.order.map((id, i) => (
+          {activeRoute.order.map((id: string, i: number) => (
             <View key={`${id}-${i}`} style={styles.stopRow}>
               <View
                 style={[
