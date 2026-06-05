@@ -53,29 +53,29 @@ def create_demo_graph() -> RoadGraph:
         "store": [
             GraphEdge("junction", 500),
             GraphEdge("stop_a", 1200),
-            GraphEdge("stop_b", 2200),
+            GraphEdge("stop_b", 2600),
         ],
         "junction": [
             GraphEdge("store", 650),
-            GraphEdge("stop_a", 400),
+            GraphEdge("stop_a", 450),
             GraphEdge("stop_b", 900),
         ],
         "stop_a": [
             GraphEdge("store", 1500),
             GraphEdge("junction", 450),
-            GraphEdge("stop_b", 700),
-            GraphEdge("stop_c", 1800),
+            GraphEdge("stop_b", 800),
+            GraphEdge("stop_c", 1300),
         ],
         "stop_b": [
             GraphEdge("store", 2100),
             GraphEdge("junction", 950),
-            GraphEdge("stop_a", 850),
+            GraphEdge("stop_a", 700),
             GraphEdge("stop_c", 600),
         ],
         "stop_c": [
             GraphEdge("store", 2600),
-            GraphEdge("stop_a", 1700),
-            GraphEdge("stop_b", 650),
+            GraphEdge("stop_a", 1300),
+            GraphEdge("stop_b", 600),
         ],
     }
 

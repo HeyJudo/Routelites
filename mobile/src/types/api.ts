@@ -4,7 +4,8 @@ export type RouteLeg = {
   from: string;
   to: string;
   distance_m: number;
-  path: LatLngPoint[];
+ // path: LatLngPoint[];
+ path: { lat: number; lng: number }[];
 };
 
 export type RouteResult = {
