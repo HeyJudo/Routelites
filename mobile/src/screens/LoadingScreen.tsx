@@ -59,15 +59,17 @@ useEffect(() => {
           store: {
             lat: storeLocation!.lat,
             lng: storeLocation!.lng,
-            lon: storeLocation!.lng, //
+            lon: storeLocation!.lng,
             label: storeLocation!.label || "Store",
+            address: storeLocation!.address ?? "",
           },
           stops: stops.map((s) => ({
             id: s.id,
             lat: s.lat,
             lng: s.lng,
-            lon: s.lng, //
+            lon: s.lng,
             label: s.label || "Stop",
+            address: s.address ?? "",
           })),
         };
 

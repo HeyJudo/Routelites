@@ -1,13 +1,17 @@
+from __future__ import annotations
+
+import os
 from time import perf_counter
 
 from fastapi import FastAPI, HTTPException
 
 from app.algorithms.tsp_branch_bound import solve_tsp_branch_bound
-from app.graph import RoadGraph, create_demo_graph
+from app.graph import RoadGraph, create_demo_graph, load_ncr_graph
 from app.models import (
     MetadataResponse,
     OptimizeRequest,
     OptimizeResponse,
+    PlaceInfo,
     RouteLegResponse,
     RoutePathPoint,
     RouteResponse,
@@ -21,7 +25,18 @@ from app.services.optimizer import (
 )
 
 app = FastAPI(title="RouteLite API")
-graph = create_demo_graph()
+
+_GRAPH_PATH = os.getenv("NCR_GRAPH_PATH", "data/ncr_graph.json")
+
+if os.path.exists(_GRAPH_PATH):
+    print(f"Loading NCR road graph from {_GRAPH_PATH} ...")
+    graph = load_ncr_graph(_GRAPH_PATH)
+    _graph_mode = "ncr"
+    print(f"NCR graph loaded: {len(graph.nodes)} nodes")
+else:
+    print("NCR graph file not found — using demo graph. Run scripts/build_ncr_graph.py to build it.")
+    graph = create_demo_graph()
+    _graph_mode = "demo"
 
 
 @app.get("/health")
@@ -29,7 +44,7 @@ def health_check() -> dict[str, bool | str]:
     return {
         "status": "ok",
         "graph_loaded": True,
-        "graph_mode": "demo",
+        "graph_mode": _graph_mode,
     }
 
 
@@ -73,6 +88,12 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
     )
     computation_time_ms = int((perf_counter() - start_time) * 1000)
 
+    places: dict[str, PlaceInfo] = {
+        selected_nodes[0]: PlaceInfo(label=request.store.label, address=request.store.address),
+    }
+    for stop, node_id in zip(request.stops, selected_nodes[1:], strict=True):
+        places[node_id] = PlaceInfo(label=stop.label, address=stop.address)
+
     return OptimizeResponse(
         optimized_route=_to_route_response(graph, optimized_route),
         naive_route=_to_route_response(graph, naive_route),
@@ -91,6 +112,7 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
             exact_global_optimum=True,
             computation_time_ms=computation_time_ms,
         ),
+        places=places,
     )
 
 
@@ -109,6 +131,7 @@ def _to_route_response(graph: RoadGraph, route: RouteResult) -> RouteResponse:
                         lng=graph.nodes[node_id].lng,
                     )
                     for node_id in leg.path
+                    if node_id in graph.nodes
                 ],
             )
             for leg in route.legs
