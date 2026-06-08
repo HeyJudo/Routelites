@@ -11,6 +11,7 @@ from app.models import (
     MetadataResponse,
     OptimizeRequest,
     OptimizeResponse,
+    PlaceInfo,
     RouteLegResponse,
     RoutePathPoint,
     RouteResponse,
@@ -87,6 +88,12 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
     )
     computation_time_ms = int((perf_counter() - start_time) * 1000)
 
+    places: dict[str, PlaceInfo] = {
+        selected_nodes[0]: PlaceInfo(label=request.store.label, address=request.store.address),
+    }
+    for stop, node_id in zip(request.stops, selected_nodes[1:], strict=True):
+        places[node_id] = PlaceInfo(label=stop.label, address=stop.address)
+
     return OptimizeResponse(
         optimized_route=_to_route_response(graph, optimized_route),
         naive_route=_to_route_response(graph, naive_route),
@@ -105,6 +112,7 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
             exact_global_optimum=True,
             computation_time_ms=computation_time_ms,
         ),
+        places=places,
     )
 
 

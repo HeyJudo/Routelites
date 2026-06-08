@@ -10,11 +10,18 @@ class Coordinate(BaseModel):
 
 class StoreLocation(Coordinate):
     label: str = "Store"
+    address: str = ""
 
 
 class StopLocation(Coordinate):
     id: str
     label: str
+    address: str = ""
+
+
+class PlaceInfo(BaseModel):
+    label: str
+    address: str = ""
 
 
 class OptimizeRequest(BaseModel):
@@ -62,3 +69,4 @@ class OptimizeResponse(BaseModel):
     naive_route: RouteResponse
     savings: SavingsResponse
     metadata: MetadataResponse
+    places: dict[str, PlaceInfo] = {}

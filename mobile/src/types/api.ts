@@ -31,14 +31,20 @@ export type OptimizeMetadata = {
   computation_time_ms: number;
 };
 
+export type PlaceInfo = {
+  label: string;
+  address: string;
+};
+
 export type OptimizeResponse = {
   optimized_route: RouteResult;
   naive_route: RouteResult;
   savings: Savings;
   metadata: OptimizeMetadata;
+  places?: Record<string, PlaceInfo>;
 };
 
 export type OptimizeRequest = {
-  store: { lat: number; lng: number; label: string };
-  stops: { id: string; lat: number; lng: number; label: string }[];
+  store: { lat: number; lng: number; label: string; address?: string };
+  stops: { id: string; lat: number; lng: number; label: string; address?: string }[];
 };
