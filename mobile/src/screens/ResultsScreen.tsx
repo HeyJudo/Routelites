@@ -106,7 +106,7 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
               return (
                 <Marker
                  // key={id}
-                key={`marker-${id}-${i}`}
+                key={`marker-${routeIdx}-${id}-${i}`}
                   coordinate={{ latitude: lastPt.lat, longitude: lastPt.lng }}
                  // title={id}
                   title={id === "store" ? "Store" : id.replace("_", " ")}

@@ -36,8 +36,9 @@ def build_distance_matrix(
     distances: list[list[int]] = []
     paths: dict[tuple[str, str], list[str]] = {}
 
+    targets = set(selected_nodes)
     for source in selected_nodes:
-        dijkstra_result = run_dijkstra(graph, source)
+        dijkstra_result = run_dijkstra(graph, source, targets=targets)
         row: list[int] = []
 
         for target in selected_nodes:
