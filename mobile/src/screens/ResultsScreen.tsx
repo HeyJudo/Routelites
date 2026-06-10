@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ChevronLeft, Info, Store } from "lucide-react-native";
+import { ChevronLeft, Info, Play, Store } from "lucide-react-native";
 import { useRef, useEffect, useState } from "react";
 import {
   Animated,
@@ -13,11 +13,13 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 
+import { AlgorithmDetailsModal } from "../components/AlgorithmDetailsModal";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { metroManilaRegion } from "../data/demoRoute";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
+import { useDeliveryRunStore } from "../state/deliveryRunStore";
 import type { OptimizeResponse, RouteLeg } from "../types/api";
-import { AlgorithmDetailsModal } from "../components/AlgorithmDetailsModal";
 
 type ResultsScreenProps = NativeStackScreenProps<RootStackParamList, "Results">;
 type ViewMode = "optimized" | "naive" | "compare";
@@ -39,6 +41,7 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const [mode, setMode]           = useState<ViewMode>("optimized");
   const [showDetails, setShowDetails] = useState(false);
   const [isExpanded, setIsExpanded]   = useState(false);
+  const [startingRun, setStartingRun] = useState(false);
 
   // ── Animated sheet height ──────────────────────────────────────────────────
   const sheetAnim  = useRef(new Animated.Value(COLLAPSED)).current;
@@ -111,6 +114,46 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
 
   const stopCount = activeRoute.order.filter((id: string) => id !== depotId).length;
   const totalKm   = (activeRoute.total_distance_m / 1000).toFixed(1);
+
+  // ── Start route handler ────────────────────────────────────────────────────
+  const handleStartRoute = async () => {
+    const order = response.optimized_route.order;
+    const depotIdx = order[0];
+
+    // All entries in order that are not the depot (skips start depot + return-to-depot tail)
+    const stopIds = order.filter((id: string) => id !== depotIdx);
+
+    // Build stops in optimized visit order
+    const stops = stopIds.map((id: string) => {
+      const leg = response.optimized_route.legs.find((l: RouteLeg) => l.to === id);
+      const last = leg ? leg.path[leg.path.length - 1] : null;
+      return {
+        label: nameFor(id),
+        address: addressFor(id),
+        lat: last?.lat ?? 0,
+        lng: last?.lng ?? 0,
+      };
+    });
+
+    if (stops.length === 0) return;
+
+    setStartingRun(true);
+    try {
+      await useDeliveryRunStore.getState().startRun({
+        optimizedOrder: order,
+        totalDistanceM: response.optimized_route.total_distance_m,
+        stops,
+      });
+      const newRun = useDeliveryRunStore.getState().activeRun;
+      if (newRun) {
+        navigation.navigate("ActiveDelivery", { runId: newRun.id });
+      }
+    } catch (err) {
+      console.warn("[ResultsScreen] startRun failed:", err);
+    } finally {
+      setStartingRun(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -230,8 +273,17 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           </View>
         </View>
 
+        {/* Start route button */}
+        <PrimaryButton
+          onPress={handleStartRoute}
+          disabled={stopCount === 0 || startingRun}
+          icon={<Play color={colors.card} size={16} />}
+        >
+          {startingRun ? "Starting…" : "Start route"}
+        </PrimaryButton>
+
         {/* Segmented control */}
-        <View style={styles.segmented}>
+        <View style={[styles.segmented, { marginTop: spacing.sm }]}>
           {(["optimized", "naive", "compare"] as ViewMode[]).map((m) => (
             <Pressable
               key={m}

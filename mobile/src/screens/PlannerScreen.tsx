@@ -26,6 +26,7 @@ import { ScreenShell } from "../components/ScreenShell";
 import { StopListModal } from "../components/StopListModal";
 import { createMapStop, demoStore } from "../data/demoRoute";
 import { useRouteDraftStore } from "../state/routeDraftStore";
+import { useActiveRun } from "../state/deliveryRunStore";
 import { colors, radius, spacing } from "../theme";
 import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { isDuplicateStop, isInsideNCR } from "../utils/validation";
@@ -50,6 +51,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const addStop = useRouteDraftStore((s) => s.addStop);
   const removeStop = useRouteDraftStore((s) => s.removeStop);
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+  const activeRun = useActiveRun();
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -169,9 +171,29 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
     }),
   ).current;
 
+  const deliveredCount = activeRun?.stops.filter((s) => s.status === "delivered").length ?? 0;
+  const totalCount = activeRun?.stops.length ?? 0;
+
   return (
     <View style={styles.container}>
       <AppHeader showMenu />
+      {activeRun && activeRun.status === "active" ? (
+        <View style={styles.resumeBanner}>
+          <View style={styles.resumeBannerText}>
+            <Text style={styles.resumeLabel}>Delivery in progress</Text>
+            <Text style={styles.resumeProgress}>
+              {deliveredCount}/{totalCount} delivered
+            </Text>
+          </View>
+          <Pressable
+            style={styles.resumeButton}
+            onPress={() => rootNav.navigate("ActiveDelivery", { runId: activeRun.id })}
+            accessibilityLabel="Resume active delivery"
+          >
+            <Text style={styles.resumeButtonText}>Resume</Text>
+          </Pressable>
+        </View>
+      ) : null}
       <ScreenShell padded={false}>
         <View style={styles.mapArea}>
           <RouteMap ref={mapRef} onLongPress={addMapStop} stops={stops} store={activeStore} />
@@ -505,6 +527,40 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 25,
     fontWeight: "900",
+  },
+  resumeBanner: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderBottomColor: colors.border,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  resumeBannerText: {
+    flex: 1,
+    gap: 2,
+  },
+  resumeLabel: {
+    color: colors.primaryDark,
+    fontSize: 15,
+    fontWeight: "800",
+  },
+  resumeProgress: {
+    color: colors.primary,
+    fontSize: 13,
+  },
+  resumeButton: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  resumeButtonText: {
+    color: colors.card,
+    fontSize: 14,
+    fontWeight: "800",
   },
   warningCard: {
     backgroundColor: colors.warningSoft,

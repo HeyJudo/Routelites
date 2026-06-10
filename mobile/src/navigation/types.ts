@@ -9,6 +9,9 @@ export type RootStackParamList = {
   MainTabs: { screen?: string; params?: object } | undefined;
   Loading: undefined;
   Results: { response: OptimizeResponse };
+  ActiveDelivery: { runId: string } | undefined;
+  SignIn: undefined;
+  SignUp: undefined;
 };
 
 export type MainTabParamList = {
