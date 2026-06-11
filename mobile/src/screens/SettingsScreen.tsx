@@ -1,11 +1,12 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { FlaskConical, Info, PlugZap, Store } from "lucide-react-native";
+import { FlaskConical, Info, PlugZap, Store, UserCircle } from "lucide-react-native";
 import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
 import type { RootStackParamList } from "../navigation/types";
+import { useAuthStore } from "../state/authStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing } from "../theme";
 
@@ -23,6 +24,10 @@ export function SettingsScreen() {
   const clearStops = useRouteDraftStore((s) => s.clearStops);
   const clearStoreLocation = useRouteDraftStore((s) => s.clearStoreLocation);
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+
+  const user = useAuthStore((s) => s.user);
+  const isGuest = useAuthStore((s) => s.isGuest);
+  const signOut = useAuthStore((s) => s.signOut);
 
   const handleClearDraft = () => {
     Alert.alert("Clear stops", "Remove all stops?", [
@@ -90,6 +95,28 @@ export function SettingsScreen() {
           <PrimaryButton onPress={handleReset} variant="danger">
             Reset app
           </PrimaryButton>
+        </SettingsCard>
+        <SettingsCard
+          icon={<UserCircle color={colors.primaryDark} size={22} />}
+          title="Account"
+        >
+          {isGuest ? (
+            <>
+              <Text style={styles.bodyText}>
+                You're using RouteLite as a guest. Sign up to sync your routes across devices.
+              </Text>
+              <PrimaryButton onPress={() => signOut()} variant="secondary">
+                Sign up to sync
+              </PrimaryButton>
+            </>
+          ) : (
+            <>
+              <Text style={styles.bodyText}>{user?.email ?? ""}</Text>
+              <PrimaryButton onPress={() => signOut()} variant="danger">
+                Sign out
+              </PrimaryButton>
+            </>
+          )}
         </SettingsCard>
         <SettingsCard
           icon={<Info color={colors.muted} size={22} />}

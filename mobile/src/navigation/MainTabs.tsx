@@ -2,7 +2,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Map, Route, Settings } from "lucide-react-native";
 
 import { PlannerScreen } from "../screens/PlannerScreen";
-import { ResultsTabScreen } from "../screens/ResultsTabScreen";
+import { SavedRoutesScreen } from "../screens/SavedRoutesScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { colors } from "../theme";
 import type { MainTabParamList } from "./types";
@@ -40,7 +40,7 @@ export function MainTabs() {
             return <Map color={color} size={iconSize} />;
           }
 
-          if (route.name === "Results") {
+          if (route.name === "MyRoutes") {
             return <Route color={color} size={iconSize} />;
           }
 
@@ -50,9 +50,12 @@ export function MainTabs() {
       })}
     >
       <Tab.Screen name="Planner" component={PlannerScreen} />
-      <Tab.Screen name="Results" component={ResultsTabScreen} />
+      <Tab.Screen
+        name="MyRoutes"
+        component={SavedRoutesScreen}
+        options={{ tabBarLabel: "My Routes" }}
+      />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
-

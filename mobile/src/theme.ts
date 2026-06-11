@@ -12,6 +12,8 @@ export const colors = {
   text: "#17211f",
   warning: "#a34f22",
   warningSoft: "#ffe2d4",
+  delivered: "#1b7a3e",
+  deliveredSoft: "#d4f5e2",
 } as const;
 
 export const spacing = {

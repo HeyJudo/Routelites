@@ -33,12 +33,23 @@ export function AlgorithmDetailsModal({ metadata, visible, onClose }: Props) {
             </Text>
           </View>
 
+          {metadata.mode === "clustered" ? (
+            <View style={styles.approxNote}>
+              <Text style={styles.approxNoteText}>
+                Approximate (clustered) optimum — stops are grouped spatially; each cluster is solved exactly via B&B. Not guaranteed globally optimal.
+              </Text>
+            </View>
+          ) : null}
+
           <Row label="Stops processed" value={String(metadata.stops_processed)} />
           <Row label="Dijkstra runs" value={String(metadata.dijkstra_runs)} />
           <Row label="Distance matrix" value={metadata.distance_matrix_size} />
           <Row label="Branches explored" value={String(metadata.branches_explored)} />
           <Row label="Branches pruned" value={String(metadata.branches_pruned)} />
-          <Row label="Batches used" value={String(metadata.batches_used)} />
+          <Row
+            label={metadata.mode === "clustered" ? "Clusters used" : "Batches used"}
+            value={String(metadata.batches_used)}
+          />
           <Row label="Computation time" value={`${metadata.computation_time_ms} ms`} />
           <Row
             label="Exact global optimum"
@@ -49,7 +60,7 @@ export function AlgorithmDetailsModal({ metadata, visible, onClose }: Props) {
             <Text style={styles.footerText}>
               {metadata.exact_global_optimum
                 ? "Full-set Branch and Bound guarantees the exact optimal tour for this stop set."
-                : "Clustered B&B provides an optimized but not globally exact tour."}
+                : "Clustered B&B provides a near-optimal tour. Open Algorithm Details after optimizing to review cluster and branch statistics."}
             </Text>
           </View>
         </View>
@@ -68,6 +79,17 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  approxNote: {
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.sm,
+    marginBottom: 12,
+    padding: 10,
+  },
+  approxNoteText: {
+    color: colors.warning,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   badge: {
     alignSelf: "flex-start",
     backgroundColor: colors.primarySoft,

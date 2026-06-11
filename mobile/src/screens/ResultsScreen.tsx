@@ -1,23 +1,32 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ChevronLeft, Info, Store } from "lucide-react-native";
+import { Bookmark, ChevronLeft, Info, Play, Store } from "lucide-react-native";
 import { useRef, useEffect, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
+  Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 
+import { AlgorithmDetailsModal } from "../components/AlgorithmDetailsModal";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { metroManilaRegion } from "../data/demoRoute";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
+import { createRoute } from "../api/savedRoutes";
+import { useDeliveryRunStore } from "../state/deliveryRunStore";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import type { OptimizeResponse, RouteLeg } from "../types/api";
-import { AlgorithmDetailsModal } from "../components/AlgorithmDetailsModal";
 
 type ResultsScreenProps = NativeStackScreenProps<RootStackParamList, "Results">;
 type ViewMode = "optimized" | "naive" | "compare";
@@ -39,6 +48,12 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const [mode, setMode]           = useState<ViewMode>("optimized");
   const [showDetails, setShowDetails] = useState(false);
   const [isExpanded, setIsExpanded]   = useState(false);
+  const [startingRun, setStartingRun] = useState(false);
+
+  // Save route modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [routeNameDraft, setRouteNameDraft] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // ── Animated sheet height ──────────────────────────────────────────────────
   const sheetAnim  = useRef(new Animated.Value(COLLAPSED)).current;
@@ -111,6 +126,66 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
 
   const stopCount = activeRoute.order.filter((id: string) => id !== depotId).length;
   const totalKm   = (activeRoute.total_distance_m / 1000).toFixed(1);
+
+  // ── Start route handler ────────────────────────────────────────────────────
+  const handleStartRoute = async () => {
+    const order = response.optimized_route.order;
+    const depotIdx = order[0];
+
+    // All entries in order that are not the depot (skips start depot + return-to-depot tail)
+    const stopIds = order.filter((id: string) => id !== depotIdx);
+
+    // Build stops in optimized visit order
+    const stops = stopIds.map((id: string) => {
+      const leg = response.optimized_route.legs.find((l: RouteLeg) => l.to === id);
+      const last = leg ? leg.path[leg.path.length - 1] : null;
+      return {
+        label: nameFor(id),
+        address: addressFor(id),
+        lat: last?.lat ?? 0,
+        lng: last?.lng ?? 0,
+      };
+    });
+
+    if (stops.length === 0) return;
+
+    setStartingRun(true);
+    try {
+      await useDeliveryRunStore.getState().startRun({
+        optimizedOrder: order,
+        totalDistanceM: response.optimized_route.total_distance_m,
+        stops,
+      });
+      const newRun = useDeliveryRunStore.getState().activeRun;
+      if (newRun) {
+        navigation.navigate("ActiveDelivery", { runId: newRun.id });
+      }
+    } catch (err) {
+      console.warn("[ResultsScreen] startRun failed:", err);
+    } finally {
+      setStartingRun(false);
+    }
+  };
+
+  // ── Save route handler ─────────────────────────────────────────────────────
+  const handleSaveRoute = async () => {
+    const { storeLocation, stops } = useRouteDraftStore.getState();
+    if (!storeLocation || stops.length === 0) {
+      Alert.alert("Nothing to save", "Add stops to your route first.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await createRoute(routeNameDraft.trim() || "My Route", storeLocation, stops);
+      setShowSaveModal(false);
+      setRouteNameDraft("");
+      Alert.alert("Saved", "Route saved to My Routes.");
+    } catch {
+      Alert.alert("Error", "Could not save route. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -230,8 +305,30 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           </View>
         </View>
 
+        {/* Start route + Save route buttons */}
+        <PrimaryButton
+          onPress={handleStartRoute}
+          disabled={stopCount === 0 || startingRun}
+          icon={<Play color={colors.card} size={16} />}
+        >
+          {startingRun ? "Starting…" : "Start route"}
+        </PrimaryButton>
+
+        <Pressable
+          style={styles.saveRouteBtn}
+          onPress={() => {
+            setRouteNameDraft("");
+            setShowSaveModal(true);
+          }}
+          disabled={stopCount === 0}
+          accessibilityLabel="Save route"
+        >
+          <Bookmark color={colors.primaryDark} size={14} />
+          <Text style={styles.saveRouteBtnText}>Save route</Text>
+        </Pressable>
+
         {/* Segmented control */}
-        <View style={styles.segmented}>
+        <View style={[styles.segmented, { marginTop: spacing.sm }]}>
           {(["optimized", "naive", "compare"] as ViewMode[]).map((m) => (
             <Pressable
               key={m}
@@ -317,6 +414,56 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
         visible={showDetails}
         onClose={() => setShowDetails(false)}
       />
+
+      {/* Save route modal */}
+      <Modal
+        visible={showSaveModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSaveModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={saveModalStyles.overlay}
+        >
+          <View style={saveModalStyles.card}>
+            <Text style={saveModalStyles.title}>Save route</Text>
+            <TextInput
+              style={saveModalStyles.input}
+              placeholder="Route name (e.g. Morning run)"
+              placeholderTextColor={colors.muted}
+              value={routeNameDraft}
+              onChangeText={setRouteNameDraft}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSaveRoute}
+              selectionColor={colors.primary}
+            />
+            <View style={saveModalStyles.actions}>
+              <Pressable
+                style={[saveModalStyles.btn, saveModalStyles.btnCancel]}
+                onPress={() => setShowSaveModal(false)}
+                disabled={saving}
+              >
+                <Text style={saveModalStyles.btnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  saveModalStyles.btn,
+                  saveModalStyles.btnConfirm,
+                  saving && saveModalStyles.btnDisabled,
+                ]}
+                onPress={handleSaveRoute}
+                disabled={saving}
+              >
+                <Text style={saveModalStyles.btnConfirmText}>
+                  {saving ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -465,4 +612,49 @@ const styles = StyleSheet.create({
   },
   storeMarkerText: { color: colors.card, fontSize: 14, fontWeight: "900" },
   title: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  saveRouteBtn: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.xs,
+    justifyContent: "center",
+    marginTop: spacing.xs,
+    paddingVertical: 10,
+  },
+  saveRouteBtnText: { color: colors.primaryDark, fontSize: 13, fontWeight: "800" },
+});
+
+const saveModalStyles = StyleSheet.create({
+  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  btn: { borderRadius: radius.sm, flex: 1, paddingVertical: 12 },
+  btnCancel: { backgroundColor: colors.mutedSoft },
+  btnCancelText: { color: colors.text, fontWeight: "700", textAlign: "center" },
+  btnConfirm: { backgroundColor: colors.primary },
+  btnConfirmText: { color: colors.card, fontWeight: "700", textAlign: "center" },
+  btnDisabled: { opacity: 0.5 },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    marginHorizontal: 24,
+    padding: spacing.xl,
+  },
+  input: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.sm,
+    color: colors.text,
+    fontSize: 16,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  overlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    flex: 1,
+    justifyContent: "center",
+  },
+  title: { color: colors.text, fontSize: 18, fontWeight: "900" },
 });

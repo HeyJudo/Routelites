@@ -115,35 +115,27 @@ def test_optimize_rejects_locations_that_snap_to_same_demo_node():
     }
 
 
-def test_optimize_returns_clustered_not_implemented_for_more_than_exact_threshold():
+def test_optimize_rejects_more_than_150_stops():
     client = TestClient(app)
 
     stops = [
         {
             "id": f"stop_{index}",
-            "lat": 14.6010,
-            "lng": 120.9850,
+            "lat": 14.6010 + index * 0.001,
+            "lng": 120.9850 + index * 0.001,
             "label": f"Stop {index}",
         }
-        for index in range(11)
+        for index in range(151)
     ]
 
     response = client.post(
         "/api/optimize",
         json={
-            "store": {
-                "lat": 14.5995,
-                "lng": 120.9842,
-                "label": "Store",
-            },
+            "store": {"lat": 14.5995, "lng": 120.9842, "label": "Store"},
             "stops": stops,
         },
     )
 
-    assert response.status_code == 501
-    assert response.json() == {
-        "detail": (
-            "Clustered large-route mode is planned next. "
-            "Exact mode is currently implemented for 1-10 stops."
-        )
-    }
+    assert response.status_code == 422
+    assert "150" in response.json()["detail"]
+    assert "151" in response.json()["detail"]

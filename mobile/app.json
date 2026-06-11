@@ -14,6 +14,9 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.anonymous.routelite"
-    }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

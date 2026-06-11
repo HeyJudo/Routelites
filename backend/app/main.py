@@ -17,9 +17,11 @@ from app.models import (
     RouteResponse,
     SavingsResponse,
 )
+from app.services.clustered_optimizer import solve_clustered
 from app.services.optimizer import (
     RouteResult,
     build_distance_matrix,
+    build_naive_route_sequential,
     compute_naive_route,
     compute_route_from_tsp_result,
 )
@@ -38,6 +40,9 @@ else:
     graph = create_demo_graph()
     _graph_mode = "demo"
 
+_EXACT_THRESHOLD = 10
+_MAX_STOPS = 150
+
 
 @app.get("/health")
 def health_check() -> dict[str, bool | str]:
@@ -52,22 +57,21 @@ def health_check() -> dict[str, bool | str]:
 def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
     start_time = perf_counter()
 
-    if len(request.stops) > 10:
+    n_stops = len(request.stops)
+
+    if n_stops > _MAX_STOPS:
         raise HTTPException(
-            status_code=501,
+            status_code=422,
             detail=(
-                "Clustered large-route mode is planned next. "
-                "Exact mode is currently implemented for 1-10 stops."
+                f"Route optimisation supports up to {_MAX_STOPS} stops. "
+                f"Received {n_stops}. Split your run into smaller batches."
             ),
         )
 
-    selected_nodes = [
-        graph.nearest_node(request.store.lat, request.store.lng),
-        *[
-            graph.nearest_node(stop.lat, stop.lng)
-            for stop in request.stops
-        ],
-    ]
+    store_node = graph.nearest_node(request.store.lat, request.store.lng)
+    stop_nodes = [graph.nearest_node(stop.lat, stop.lng) for stop in request.stops]
+    selected_nodes = [store_node] + stop_nodes
+
     if len(set(selected_nodes)) != len(selected_nodes):
         raise HTTPException(
             status_code=422,
@@ -77,21 +81,54 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
             ),
         )
 
-    matrix_result = build_distance_matrix(graph, selected_nodes)
-    tsp_result = solve_tsp_branch_bound(matrix_result.distances)
-    optimized_route = compute_route_from_tsp_result(matrix_result, tsp_result)
-    naive_route = compute_naive_route(matrix_result)
+    mode = "exact" if n_stops <= _EXACT_THRESHOLD else "clustered"
+
+    if mode == "exact":
+        matrix_result = build_distance_matrix(graph, selected_nodes)
+        tsp_result = solve_tsp_branch_bound(matrix_result.distances)
+        optimized_route = compute_route_from_tsp_result(matrix_result, tsp_result)
+        naive_route = compute_naive_route(matrix_result)
+
+        metadata = MetadataResponse(
+            mode="exact",
+            stops_processed=n_stops,
+            dijkstra_runs=matrix_result.dijkstra_runs,
+            distance_matrix_size=matrix_result.matrix_size,
+            branches_explored=tsp_result.branches_explored,
+            branches_pruned=tsp_result.branches_pruned,
+            batches_used=1,
+            exact_global_optimum=True,
+            computation_time_ms=int((perf_counter() - start_time) * 1000),
+        )
+    else:
+        clustered = solve_clustered(graph, store_node, stop_nodes)
+        optimized_route = clustered.route
+        naive_route = build_naive_route_sequential(
+            graph, [store_node] + stop_nodes + [store_node]
+        )
+
+        metadata = MetadataResponse(
+            mode="clustered",
+            stops_processed=n_stops,
+            dijkstra_runs=clustered.metadata.dijkstra_runs,
+            distance_matrix_size=clustered.metadata.centroid_matrix_size,
+            branches_explored=clustered.metadata.branches_explored,
+            branches_pruned=clustered.metadata.branches_pruned,
+            batches_used=clustered.metadata.num_clusters,
+            exact_global_optimum=False,
+            computation_time_ms=int((perf_counter() - start_time) * 1000),
+        )
+
     savings_distance = naive_route.total_distance_m - optimized_route.total_distance_m
     savings_percentage = round(
         (savings_distance / naive_route.total_distance_m) * 100,
         2,
     )
-    computation_time_ms = int((perf_counter() - start_time) * 1000)
 
     places: dict[str, PlaceInfo] = {
-        selected_nodes[0]: PlaceInfo(label=request.store.label, address=request.store.address),
+        store_node: PlaceInfo(label=request.store.label, address=request.store.address),
     }
-    for stop, node_id in zip(request.stops, selected_nodes[1:], strict=True):
+    for stop, node_id in zip(request.stops, stop_nodes, strict=True):
         places[node_id] = PlaceInfo(label=stop.label, address=stop.address)
 
     return OptimizeResponse(
@@ -101,17 +138,7 @@ def optimize_route(request: OptimizeRequest) -> OptimizeResponse:
             distance_m=savings_distance,
             percentage=savings_percentage,
         ),
-        metadata=MetadataResponse(
-            mode="exact",
-            stops_processed=len(request.stops),
-            dijkstra_runs=matrix_result.dijkstra_runs,
-            distance_matrix_size=matrix_result.matrix_size,
-            branches_explored=tsp_result.branches_explored,
-            branches_pruned=tsp_result.branches_pruned,
-            batches_used=1,
-            exact_global_optimum=True,
-            computation_time_ms=computation_time_ms,
-        ),
+        metadata=metadata,
         places=places,
     )
 
