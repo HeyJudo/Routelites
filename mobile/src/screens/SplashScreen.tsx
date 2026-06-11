@@ -1,86 +1,60 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated";
+import { useEffect } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 import { LogoMark } from "../components/LogoMark";
-import { colors } from "../theme";
+import { colors, motion, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type SplashScreenProps = NativeStackScreenProps<RootStackParamList, "Splash">;
 
 export function SplashScreen({ navigation }: SplashScreenProps) {
-  const progressWidth = useRef(new Animated.Value(0)).current;
-  const contentOpacity = useRef(new Animated.Value(0)).current;
-  const contentTranslateY = useRef(new Animated.Value(20)).current;
+  const logoScale = useSharedValue(0.8);
+  const logoOpacity = useSharedValue(0);
 
   useEffect(() => {
-    // Fade in content
-    Animated.parallel([
-      Animated.timing(contentOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(contentTranslateY, {
-        toValue: 0,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    logoScale.value = withSpring(1, motion.spring);
+    logoOpacity.value = withSpring(1, motion.spring);
 
-    // Animate progress bar
-    Animated.timing(progressWidth, {
-      toValue: 100,
-      duration: 1200,
-      useNativeDriver: false,
-    }).start();
-
-    // Navigate after animation
     const timeoutId = setTimeout(() => {
       navigation.replace("Welcome");
-    }, 1400);
+    }, 900);
 
     return () => clearTimeout(timeoutId);
-  }, [navigation, progressWidth, contentOpacity, contentTranslateY]);
+  }, [navigation]);
 
-  const widthInterpolated = progressWidth.interpolate({
-    inputRange: [0, 100],
-    outputRange: ["0%", "100%"],
-  });
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
+  }));
 
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
-      <Animated.View
-        style={[
-          styles.center,
-          {
-            opacity: contentOpacity,
-            transform: [{ translateY: contentTranslateY }],
-          },
-        ]}
-      >
-        <LogoMark showWordmark={false} size="lg" />
-        <Text style={styles.title}>RouteLite</Text>
-        <Text style={styles.subtitle}>
+      <View style={styles.center}>
+        <Animated.View style={logoStyle}>
+          <LogoMark showWordmark={false} size="lg" />
+        </Animated.View>
+        <Animated.Text
+          entering={FadeInDown.delay(80).duration(250)}
+          style={styles.title}
+        >
+          RouteLite
+        </Animated.Text>
+        <Animated.Text
+          entering={FadeIn.delay(80).duration(250)}
+          style={styles.subtitle}
+        >
           Smarter delivery routes for Metro Manila
-        </Text>
-      </Animated.View>
-
-      <View style={styles.footer}>
-        <Text style={styles.loadingText}>GETTING READY</Text>
-        <View style={styles.track}>
-          <Animated.View
-            style={[
-              styles.progress,
-              {
-                width: widthInterpolated,
-              },
-            ]}
-          />
-        </View>
+        </Animated.Text>
       </View>
     </View>
   );
@@ -98,43 +72,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 28,
   },
-  footer: {
-    alignItems: "center",
-    bottom: 70,
-    left: 0,
-    position: "absolute",
-    right: 0,
-  },
-  loadingText: {
-    color: colors.muted,
-    fontFamily: "monospace",
-    fontSize: 11,
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  progress: {
-    backgroundColor: colors.primary,
-    borderRadius: 4,
-    height: "100%",
-  },
   subtitle: {
     color: colors.muted,
-    fontSize: 16,
-    lineHeight: 23,
     maxWidth: 280,
     textAlign: "center",
+    ...type.body,
   },
   title: {
     color: colors.text,
-    fontSize: 28,
-    fontWeight: "800",
-  },
-  track: {
-    backgroundColor: colors.border,
-    borderRadius: 4,
-    height: 6,
-    marginHorizontal: 60,
-    overflow: "hidden",
-    width: 200,
+    letterSpacing: -0.5,
+    ...type.display,
   },
 });

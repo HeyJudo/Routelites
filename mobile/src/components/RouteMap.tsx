@@ -8,7 +8,8 @@ import MapView, {
 } from "react-native-maps";
 
 import { metroManilaRegion } from "../data/demoRoute";
-import { colors } from "../theme";
+import { mapStyle } from "../data/mapStyle";
+import { colors, font, shadow, type } from "../theme";
 import type { Stop, StoreLocation } from "../types/route";
 
 export type RouteMapHandle = {
@@ -51,6 +52,7 @@ const RouteMapComponent = forwardRef<RouteMapHandle, RouteMapProps>(
     return (
       <MapView
         ref={mapRef}
+        customMapStyle={mapStyle}
         initialRegion={initialRegion}
         onLongPress={handleLongPress}
         showsCompass={false}
@@ -66,7 +68,7 @@ const RouteMapComponent = forwardRef<RouteMapHandle, RouteMapProps>(
           title={store.label}
         >
           <View style={styles.storeMarker}>
-            <Store color={colors.card} size={18} />
+            <Store color={colors.textOnPrimary} size={16} />
           </View>
         </Marker>
         {stops.map((stop, index) => (
@@ -94,35 +96,29 @@ export const RouteMap = memo(RouteMapComponent);
 const styles = StyleSheet.create({
   stopMarker: {
     alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+    borderColor: colors.card,
     borderRadius: 16,
-    borderWidth: 3,
-    height: 32,
+    borderWidth: 2,
+    height: 28,
     justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.16,
-    shadowRadius: 4,
-    width: 32,
+    ...shadow.sm,
+    width: 28,
   },
   stopMarkerText: {
-    color: colors.primaryDark,
-    fontSize: 13,
-    fontWeight: "900",
+    ...type.caption,
+    color: colors.textOnPrimary,
+    fontFamily: font.heavy,
   },
   storeMarker: {
     alignItems: "center",
     backgroundColor: colors.primary,
     borderColor: colors.card,
-    borderRadius: 26,
+    borderRadius: 22,
     borderWidth: 3,
-    height: 52,
+    height: 40,
     justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { height: 3, width: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    width: 52,
+    ...shadow.md,
+    width: 40,
   },
 });

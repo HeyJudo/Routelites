@@ -1,22 +1,31 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { FlaskConical, Info, PlugZap, Store, UserCircle } from "lucide-react-native";
-import { Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ChevronDown,
+  ChevronUp,
+  FlaskConical,
+  Info,
+  PlugZap,
+  Store,
+  UserCircle,
+} from "lucide-react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { AppHeader } from "../components/AppHeader";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { ResumeRunBanner } from "../components/ResumeRunBanner";
 import type { RootStackParamList } from "../navigation/types";
 import { useAuthStore } from "../state/authStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 
-/**
- * Render the Settings screen containing controls for store location, connection status, demo actions, and app reset.
- *
- * The screen displays the current store (or "No store set.") and lets the user navigate to the SetStore screen, load a demo route, clear the current route draft, or reset the app. Clearing the draft and resetting the app prompt for confirmation; resetting clears stops and store location and navigates to the Splash screen.
- *
- * @returns The JSX element for the Settings screen
- */
+const BASE_URL =
+  process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+
+type HealthStatus = "unknown" | "checking" | "online" | "offline";
+
 export function SettingsScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -28,7 +37,56 @@ export function SettingsScreen() {
   const user = useAuthStore((s) => s.user);
   const isGuest = useAuthStore((s) => s.isGuest);
   const signOut = useAuthStore((s) => s.signOut);
+  const setPostSignOutScreen = useAuthStore((s) => s.setPostSignOutScreen);
 
+  // ── Health check ──────────────────────────────────────────────────────────
+  const [health, setHealth] = useState<HealthStatus>("unknown");
+  const abortRef = useRef<AbortController | null>(null);
+
+  const checkHealth = async () => {
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setHealth("checking");
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const res = await fetch(`${BASE_URL}/health`, {
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      setHealth(res.ok ? "online" : "offline");
+    } catch {
+      clearTimeout(timer);
+      setHealth("offline");
+    }
+  };
+
+  useEffect(() => {
+    checkHealth();
+    return () => {
+      abortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const healthDotColor =
+    health === "online"
+      ? colors.delivered
+      : health === "offline"
+        ? colors.danger
+        : colors.muted;
+
+  const healthLabel =
+    health === "online"
+      ? "Backend online"
+      : health === "offline"
+        ? "Backend unreachable"
+        : "Checking…";
+
+  // ── Developer section ─────────────────────────────────────────────────────
+  const [devOpen, setDevOpen] = useState(false);
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
   const handleClearDraft = () => {
     Alert.alert("Clear stops", "Remove all stops?", [
       { style: "cancel", text: "Cancel" },
@@ -51,14 +109,52 @@ export function SettingsScreen() {
     ]);
   };
 
+  const handleGuestUpsell = async () => {
+    setPostSignOutScreen("SignUp");
+    await signOut();
+  };
+
   return (
     <View style={styles.container}>
-      <AppHeader showMenu />
+      <AppHeader />
+      <ResumeRunBanner />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Settings</Text>
-        <Text style={styles.subtitle}>
-          Manage routing preferences and system status.
-        </Text>
+
+        {/* Account card */}
+        <SettingsCard
+          icon={<UserCircle color={colors.primaryDark} size={22} />}
+          title="Account"
+        >
+          {isGuest ? (
+            <>
+              <View style={styles.guestRow}>
+                <View style={styles.guestPill}>
+                  <Text style={styles.guestPillText}>Guest mode</Text>
+                </View>
+              </View>
+              <Text style={styles.bodyText}>
+                Your routes live on this device only.
+              </Text>
+              <PrimaryButton size="sm" onPress={handleGuestUpsell}>
+                Create free account
+              </PrimaryButton>
+            </>
+          ) : (
+            <>
+              <Text style={styles.bodyText}>{user?.email ?? ""}</Text>
+              <PrimaryButton
+                size="sm"
+                variant="danger"
+                onPress={() => signOut()}
+              >
+                Sign out
+              </PrimaryButton>
+            </>
+          )}
+        </SettingsCard>
+
+        {/* Store Location card */}
         <SettingsCard
           icon={<Store color={colors.primaryDark} size={22} />}
           title="Store Location"
@@ -69,55 +165,34 @@ export function SettingsScreen() {
               : "No store set."}
           </Text>
           <PrimaryButton
+            size="sm"
+            variant="outline"
             onPress={() => navigation.navigate("SetStore")}
-            variant="secondary"
           >
             Change store location
           </PrimaryButton>
         </SettingsCard>
+
+        {/* Connection card */}
         <SettingsCard
           icon={<PlugZap color={colors.primaryDark} size={22} />}
           title="Connection"
         >
-          <Text style={styles.bodyText}>Backend routing engine is online.</Text>
-          <PrimaryButton>Test backend status</PrimaryButton>
-        </SettingsCard>
-        <SettingsCard
-          icon={<FlaskConical color={colors.primaryDark} size={22} />}
-          title="Demo & Development"
-        >
-          <PrimaryButton onPress={loadDemoRoute} variant="secondary">
-            Load demo route
-          </PrimaryButton>
-          <PrimaryButton onPress={handleClearDraft} variant="danger">
-            Clear stops
-          </PrimaryButton>
-          <PrimaryButton onPress={handleReset} variant="danger">
-            Reset app
+          <View style={styles.healthRow}>
+            <View style={[styles.healthDot, { backgroundColor: healthDotColor }]} />
+            <Text style={styles.bodyText}>{healthLabel}</Text>
+          </View>
+          <PrimaryButton
+            size="sm"
+            variant="outline"
+            loading={health === "checking"}
+            onPress={checkHealth}
+          >
+            Check again
           </PrimaryButton>
         </SettingsCard>
-        <SettingsCard
-          icon={<UserCircle color={colors.primaryDark} size={22} />}
-          title="Account"
-        >
-          {isGuest ? (
-            <>
-              <Text style={styles.bodyText}>
-                You're using RouteLite as a guest. Sign up to sync your routes across devices.
-              </Text>
-              <PrimaryButton onPress={() => signOut()} variant="secondary">
-                Sign up to sync
-              </PrimaryButton>
-            </>
-          ) : (
-            <>
-              <Text style={styles.bodyText}>{user?.email ?? ""}</Text>
-              <PrimaryButton onPress={() => signOut()} variant="danger">
-                Sign out
-              </PrimaryButton>
-            </>
-          )}
-        </SettingsCard>
+
+        {/* About card */}
         <SettingsCard
           icon={<Info color={colors.muted} size={22} />}
           title="About"
@@ -126,10 +201,46 @@ export function SettingsScreen() {
             RouteLite uses Dijkstra + Branch and Bound for route optimization.
           </Text>
         </SettingsCard>
+
+        {/* Developer disclosure */}
+        <View style={styles.devSection}>
+          <Pressable
+            style={styles.devToggleRow}
+            onPress={() => setDevOpen((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel="Toggle developer section"
+          >
+            <FlaskConical color={colors.muted} size={16} />
+            <Text style={styles.devToggleLabel}>Developer</Text>
+            {devOpen ? (
+              <ChevronUp color={colors.muted} size={16} />
+            ) : (
+              <ChevronDown color={colors.muted} size={16} />
+            )}
+          </Pressable>
+
+          {devOpen && (
+            <Animated.View entering={FadeInDown} style={styles.devContent}>
+              <PrimaryButton size="sm" variant="secondary" onPress={loadDemoRoute}>
+                Load demo route
+              </PrimaryButton>
+              <PrimaryButton size="sm" variant="danger" onPress={handleClearDraft}>
+                Clear stops
+              </PrimaryButton>
+              <PrimaryButton size="sm" variant="danger" onPress={handleReset}>
+                Reset app
+              </PrimaryButton>
+            </Animated.View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// SettingsCard
+// ---------------------------------------------------------------------------
 
 type SettingsCardProps = {
   children: React.ReactNode;
@@ -149,11 +260,14 @@ function SettingsCard({ children, icon, title }: SettingsCardProps) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
   bodyText: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
   },
   card: {
     backgroundColor: colors.card,
@@ -164,9 +278,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   cardTitle: {
+    ...type.heading,
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "900",
   },
   cardTitleRow: {
     alignItems: "center",
@@ -182,6 +295,48 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 120,
   },
+  devContent: {
+    gap: spacing.md,
+    paddingTop: spacing.md,
+  },
+  devSection: {
+    gap: 0,
+  },
+  devToggleLabel: {
+    ...type.label,
+    color: colors.muted,
+    flex: 1,
+  },
+  devToggleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+  },
+  guestPill: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  guestPillText: {
+    ...type.caption,
+    color: colors.muted,
+  },
+  guestRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+  },
+  healthDot: {
+    borderRadius: 4,
+    height: 8,
+    width: 8,
+  },
+  healthRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
   iconWrap: {
     alignItems: "center",
     backgroundColor: colors.primarySoft,
@@ -190,15 +345,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 38,
   },
-  subtitle: {
-    color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
-    marginTop: -8,
-  },
   title: {
+    ...type.display,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
   },
 });

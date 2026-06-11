@@ -1,3 +1,6 @@
+# Claude Code agent worktrees
+.claude/worktrees/
+
 # OS/editor
 .DS_Store
 Thumbs.db
@@ -26,6 +29,9 @@ htmlcov/
 .venv/
 venv/
 env/
+
+# Backend cache (precomputed shortest paths)
+backend/cache/
 
 # Backend generated data
 backend/data/*.pkl

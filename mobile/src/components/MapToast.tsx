@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text } from "react-native";
 
-import { colors, radius } from "../theme";
+import { colors, radius, type } from "../theme";
 
 type Props = {
   message: string;
@@ -63,9 +63,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   text: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700",
+    ...type.label,
+    color: colors.textOnPrimary,
     textAlign: "center",
   },
 });

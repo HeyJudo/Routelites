@@ -1,26 +1,26 @@
-import { ChevronLeft, MoreVertical } from "lucide-react-native";
+import { ChevronLeft } from "lucide-react-native";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { colors } from "../theme";
+import { colors, type } from "../theme";
 import { LogoMark } from "./LogoMark";
 
 type AppHeaderProps = {
   canGoBack?: boolean;
   onBack?: () => void;
-  showMenu?: boolean;
+  showBorder?: boolean;
   title?: string;
 };
 
 export function AppHeader({
   canGoBack,
   onBack,
-  showMenu,
+  showBorder = true,
   title,
 }: AppHeaderProps) {
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
-      <View style={styles.header}>
+      <View style={[styles.header, showBorder ? styles.headerBorder : null]}>
         <View style={styles.side}>
           {canGoBack ? (
             <Pressable
@@ -33,13 +33,7 @@ export function AppHeader({
           ) : null}
         </View>
         {title ? <Text style={styles.title}>{title}</Text> : <LogoMark />}
-        <View style={[styles.side, styles.rightSide]}>
-          {showMenu ? (
-            <Pressable accessibilityLabel="More options" style={styles.iconButton}>
-              <MoreVertical color={colors.text} size={22} />
-            </Pressable>
-          ) : null}
-        </View>
+        <View style={[styles.side, styles.rightSide]} />
       </View>
     </SafeAreaView>
   );
@@ -49,12 +43,14 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     backgroundColor: colors.background,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    height: 64,
+    height: 56,
     justifyContent: "space-between",
     paddingHorizontal: 14,
+  },
+  headerBorder: {
+    borderBottomColor: colors.border,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   iconButton: {
     alignItems: "center",
@@ -72,9 +68,7 @@ const styles = StyleSheet.create({
     minWidth: 48,
   },
   title: {
+    ...type.heading,
     color: colors.primaryDark,
-    fontSize: 21,
-    fontWeight: "800",
   },
 });
-
