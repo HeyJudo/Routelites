@@ -68,9 +68,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
       ? "0 stops"
       : stops.length <= 10
         ? `${stops.length} stops - Exact mode`
-        : stops.length <= 20
-          ? `${stops.length} stops - Clustered mode`
-          : `${stops.length} stops - Large-route mode`;
+        : `${stops.length} stops - Clustered mode`;
 
   const addMapStop = (coordinate: { latitude: number; longitude: number }) => {
     if (!isInsideNCR(coordinate.latitude, coordinate.longitude)) {
@@ -256,18 +254,10 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
               <Text style={styles.statusTitle}>{stopModeLabel}</Text>
               <Text style={styles.statusChip}>PENDING</Text>
             </View>
-            {stops.length > 10 && stops.length <= 20 ? (
-              <View style={styles.warningCard}>
-                <Text style={styles.warningText}>
-                  Routes with 11+ stops use clustered mode and are approximate.
-                </Text>
-              </View>
-            ) : null}
-            {stops.length > 20 ? (
-              <View style={styles.warningCard}>
-                <Text style={styles.warningText}>
-                  Large-route mode: {stops.length} stops. Optimization may take
-                  longer and results are approximate.
+            {stops.length > 10 ? (
+              <View style={styles.clusteredNote}>
+                <Text style={styles.clusteredNoteText}>
+                  Clustered B&B — stops are grouped spatially and each cluster is solved exactly. Results are near-optimal.
                 </Text>
               </View>
             ) : null}
@@ -562,14 +552,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
   },
-  warningCard: {
-    backgroundColor: colors.warningSoft,
+  clusteredNote: {
+    backgroundColor: colors.primarySoft,
     borderRadius: radius.sm,
     padding: 12,
   },
-  warningText: {
-    color: colors.warning,
-    fontFamily: "monospace",
+  clusteredNoteText: {
+    color: colors.primaryDark,
     fontSize: 12,
     lineHeight: 17,
   },
