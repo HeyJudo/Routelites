@@ -1,14 +1,19 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { ChevronLeft, Info, Play, Store } from "lucide-react-native";
+import { Bookmark, ChevronLeft, Info, Play, Store } from "lucide-react-native";
 import { useRef, useEffect, useState } from "react";
 import {
+  Alert,
   Animated,
   Dimensions,
+  KeyboardAvoidingView,
+  Modal,
   PanResponder,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
@@ -18,7 +23,9 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { metroManilaRegion } from "../data/demoRoute";
 import { colors, radius, spacing } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
+import { createRoute } from "../api/savedRoutes";
 import { useDeliveryRunStore } from "../state/deliveryRunStore";
+import { useRouteDraftStore } from "../state/routeDraftStore";
 import type { OptimizeResponse, RouteLeg } from "../types/api";
 
 type ResultsScreenProps = NativeStackScreenProps<RootStackParamList, "Results">;
@@ -42,6 +49,11 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const [showDetails, setShowDetails] = useState(false);
   const [isExpanded, setIsExpanded]   = useState(false);
   const [startingRun, setStartingRun] = useState(false);
+
+  // Save route modal
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [routeNameDraft, setRouteNameDraft] = useState("");
+  const [saving, setSaving] = useState(false);
 
   // ── Animated sheet height ──────────────────────────────────────────────────
   const sheetAnim  = useRef(new Animated.Value(COLLAPSED)).current;
@@ -152,6 +164,26 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
       console.warn("[ResultsScreen] startRun failed:", err);
     } finally {
       setStartingRun(false);
+    }
+  };
+
+  // ── Save route handler ─────────────────────────────────────────────────────
+  const handleSaveRoute = async () => {
+    const { storeLocation, stops } = useRouteDraftStore.getState();
+    if (!storeLocation || stops.length === 0) {
+      Alert.alert("Nothing to save", "Add stops to your route first.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await createRoute(routeNameDraft.trim() || "My Route", storeLocation, stops);
+      setShowSaveModal(false);
+      setRouteNameDraft("");
+      Alert.alert("Saved", "Route saved to My Routes.");
+    } catch {
+      Alert.alert("Error", "Could not save route. Try again.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -273,7 +305,7 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           </View>
         </View>
 
-        {/* Start route button */}
+        {/* Start route + Save route buttons */}
         <PrimaryButton
           onPress={handleStartRoute}
           disabled={stopCount === 0 || startingRun}
@@ -281,6 +313,19 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
         >
           {startingRun ? "Starting…" : "Start route"}
         </PrimaryButton>
+
+        <Pressable
+          style={styles.saveRouteBtn}
+          onPress={() => {
+            setRouteNameDraft("");
+            setShowSaveModal(true);
+          }}
+          disabled={stopCount === 0}
+          accessibilityLabel="Save route"
+        >
+          <Bookmark color={colors.primaryDark} size={14} />
+          <Text style={styles.saveRouteBtnText}>Save route</Text>
+        </Pressable>
 
         {/* Segmented control */}
         <View style={[styles.segmented, { marginTop: spacing.sm }]}>
@@ -369,6 +414,56 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
         visible={showDetails}
         onClose={() => setShowDetails(false)}
       />
+
+      {/* Save route modal */}
+      <Modal
+        visible={showSaveModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSaveModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={saveModalStyles.overlay}
+        >
+          <View style={saveModalStyles.card}>
+            <Text style={saveModalStyles.title}>Save route</Text>
+            <TextInput
+              style={saveModalStyles.input}
+              placeholder="Route name (e.g. Morning run)"
+              placeholderTextColor={colors.muted}
+              value={routeNameDraft}
+              onChangeText={setRouteNameDraft}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSaveRoute}
+              selectionColor={colors.primary}
+            />
+            <View style={saveModalStyles.actions}>
+              <Pressable
+                style={[saveModalStyles.btn, saveModalStyles.btnCancel]}
+                onPress={() => setShowSaveModal(false)}
+                disabled={saving}
+              >
+                <Text style={saveModalStyles.btnCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[
+                  saveModalStyles.btn,
+                  saveModalStyles.btnConfirm,
+                  saving && saveModalStyles.btnDisabled,
+                ]}
+                onPress={handleSaveRoute}
+                disabled={saving}
+              >
+                <Text style={saveModalStyles.btnConfirmText}>
+                  {saving ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -517,4 +612,49 @@ const styles = StyleSheet.create({
   },
   storeMarkerText: { color: colors.card, fontSize: 14, fontWeight: "900" },
   title: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  saveRouteBtn: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: spacing.xs,
+    justifyContent: "center",
+    marginTop: spacing.xs,
+    paddingVertical: 10,
+  },
+  saveRouteBtnText: { color: colors.primaryDark, fontSize: 13, fontWeight: "800" },
+});
+
+const saveModalStyles = StyleSheet.create({
+  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  btn: { borderRadius: radius.sm, flex: 1, paddingVertical: 12 },
+  btnCancel: { backgroundColor: colors.mutedSoft },
+  btnCancelText: { color: colors.text, fontWeight: "700", textAlign: "center" },
+  btnConfirm: { backgroundColor: colors.primary },
+  btnConfirmText: { color: colors.card, fontWeight: "700", textAlign: "center" },
+  btnDisabled: { opacity: 0.5 },
+  card: {
+    backgroundColor: colors.card,
+    borderRadius: radius.lg,
+    marginHorizontal: 24,
+    padding: spacing.xl,
+  },
+  input: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.sm,
+    color: colors.text,
+    fontSize: 16,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  overlay: {
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    flex: 1,
+    justifyContent: "center",
+  },
+  title: { color: colors.text, fontSize: 18, fontWeight: "900" },
 });

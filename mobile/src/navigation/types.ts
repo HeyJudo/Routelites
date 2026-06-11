@@ -16,6 +16,6 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Planner: undefined;
-  Results: undefined;
+  MyRoutes: undefined;
   Settings: undefined;
 };

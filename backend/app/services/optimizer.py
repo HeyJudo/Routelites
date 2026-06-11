@@ -33,6 +33,14 @@ def build_distance_matrix(
     graph: RoadGraph,
     selected_nodes: list[str],
 ) -> DistanceMatrixResult:
+    """
+    Build a full n×n distance matrix using one multi-target Dijkstra per source.
+
+    Each Dijkstra run fans out from a source and settles ALL selected targets in a
+    single pass, stopping as soon as the last target is settled.  This is O(n) runs
+    and is more efficient than n² individual point-to-point searches for matrix
+    building because the traversal cost is amortised across all targets at once.
+    """
     distances: list[list[int]] = []
     paths: dict[tuple[str, str], list[str]] = {}
 
