@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react-native";
 import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, font, radius, spacing, type } from "../theme";
 
 type Props = { visible: boolean; onClose: () => void };
 
@@ -116,16 +116,16 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 6 },
   actionDisabled: { opacity: 0.3 },
   actions: { alignItems: "center", flexDirection: "row", gap: 2 },
-  address: { color: colors.muted, fontSize: 13 },
+  address: { ...type.caption, color: colors.muted },
   clearBtn: {
     alignItems: "center",
     backgroundColor: colors.dangerSoft,
     borderRadius: radius.md,
     padding: 14,
   },
-  clearText: { color: colors.danger, fontSize: 15, fontWeight: "800" },
+  clearText: { ...type.body, color: colors.danger },
   container: { backgroundColor: colors.background, flex: 1, paddingTop: 56 },
-  empty: { color: colors.muted, fontSize: 15, textAlign: "center" },
+  empty: { ...type.body, color: colors.muted, textAlign: "center" },
   footer: { padding: 20 },
   header: {
     alignItems: "center",
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   info: { flex: 1 },
-  label: { color: colors.text, fontSize: 15, fontWeight: "800" },
+  label: { ...type.body, color: colors.text },
   list: { gap: spacing.md, padding: 20 },
   number: {
     alignItems: "center",
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 28,
   },
-  numberText: { color: colors.primaryDark, fontSize: 12, fontWeight: "900" },
+  numberText: { ...type.caption, color: colors.primaryDark, fontFamily: font.heavy },
   row: {
     alignItems: "center",
     backgroundColor: colors.card,
@@ -159,5 +159,5 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: 12,
   },
-  title: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  title: { ...type.title, color: colors.text },
 });

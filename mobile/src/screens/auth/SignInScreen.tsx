@@ -1,23 +1,30 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useState } from "react";
+import * as Haptics from "expo-haptics";
+import { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { AuthInput } from "../../components/AuthInput";
 import { LogoMark } from "../../components/LogoMark";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import type { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../state/authStore";
-import { colors, radius, spacing } from "../../theme";
+import { colors, font, motion, radius, spacing, type } from "../../theme";
 
 type SignInScreenProps = NativeStackScreenProps<RootStackParamList, "SignIn">;
 
@@ -30,6 +37,27 @@ export function SignInScreen({ navigation }: SignInScreenProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const shakeX = useSharedValue(0);
+  const prevError = useRef("");
+
+  useEffect(() => {
+    if (error && error !== prevError.current) {
+      shakeX.value = withSequence(
+        withTiming(-6, { duration: 50 }),
+        withTiming(6, { duration: 60 }),
+        withTiming(-4, { duration: 60 }),
+        withTiming(4, { duration: 60 }),
+        withTiming(0, { duration: 70 }),
+      );
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+    prevError.current = error;
+  }, [error, shakeX]);
+
+  const errorShakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shakeX.value }],
+  }));
 
   const handleSignIn = async () => {
     setError("");
@@ -70,70 +98,77 @@ export function SignInScreen({ navigation }: SignInScreenProps) {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.logoRow}>
+          {/* Background blob */}
+          <View pointerEvents="none" style={styles.blob} />
+
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(0)} style={styles.logoRow}>
             <LogoMark showWordmark size="sm" />
-          </View>
+          </Animated.View>
 
-          <View style={styles.header}>
-            <Text style={styles.heading}>Welcome back</Text>
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(60)} style={styles.header}>
+            <Text style={styles.heading}>
+              Welcome{" "}
+              <Text style={styles.headingAccent}>back</Text>
+            </Text>
             <Text style={styles.subheading}>Log in to your RouteLite account</Text>
-          </View>
+          </Animated.View>
 
-          <View style={styles.form}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-                keyboardType="email-address"
-                onChangeText={setEmail}
-                placeholder="you@example.com"
-                placeholderTextColor={colors.muted}
-                style={[styles.input, loading && styles.inputDisabled]}
-                value={email}
-              />
-            </View>
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(120)} style={styles.form}>
+            <AuthInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              disabled={loading}
+              keyboardType="email-address"
+              label="Email"
+              onChangeText={setEmail}
+              placeholder="you@example.com"
+              value={email}
+            />
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-                onChangeText={setPassword}
-                placeholder="Your password"
-                placeholderTextColor={colors.muted}
-                secureTextEntry
-                style={[styles.input, loading && styles.inputDisabled]}
-                value={password}
-              />
-            </View>
+            <AuthInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              disabled={loading}
+              label="Password"
+              onChangeText={setPassword}
+              secureTextEntry
+              value={password}
+            />
 
             {error ? (
-              <View style={styles.errorCard}>
+              <Animated.View
+                entering={FadeInDown.duration(motion.base)}
+                style={[styles.errorCard, errorShakeStyle]}
+              >
                 <Text style={styles.errorText}>{error}</Text>
-              </View>
+              </Animated.View>
             ) : null}
+          </Animated.View>
 
-            {loading ? (
-              <ActivityIndicator color={colors.primary} style={styles.spinner} />
-            ) : null}
-          </View>
-
-          <View style={styles.actions}>
-            <PrimaryButton disabled={loading} onPress={handleSignIn}>
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(180)} style={styles.actions}>
+            <PrimaryButton loading={loading} onPress={handleSignIn}>
               Log in
             </PrimaryButton>
 
-            <PrimaryButton disabled={loading} onPress={handleGoogle} variant="secondary">
+            <PrimaryButton
+              disabled={loading}
+              icon={<Text style={styles.googleG}>G</Text>}
+              onPress={handleGoogle}
+              variant="outline"
+            >
               Continue with Google
             </PrimaryButton>
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
             <Pressable disabled={loading} hitSlop={8} onPress={handleGuest}>
               <Text style={styles.guestText}>Continue as guest</Text>
             </Pressable>
-          </View>
+          </Animated.View>
 
           <View style={styles.footer}>
             <Pressable
@@ -157,18 +192,39 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingTop: spacing.xl,
   },
+  blob: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    height: 280,
+    left: -80,
+    opacity: 0.5,
+    position: "absolute",
+    top: -60,
+    width: 280,
+    zIndex: -1,
+  },
+  dividerLine: {
+    backgroundColor: colors.border,
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+  },
+  dividerRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: spacing.md,
+  },
+  dividerText: {
+    ...type.caption,
+    color: colors.muted,
+  },
   errorCard: {
     backgroundColor: colors.dangerSoft,
     borderRadius: radius.sm,
     padding: 12,
   },
   errorText: {
+    ...type.label,
     color: colors.danger,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  fieldGroup: {
-    gap: spacing.xs,
   },
   footer: {
     alignItems: "center",
@@ -176,19 +232,23 @@ const styles = StyleSheet.create({
   },
   footerLink: {
     color: colors.primary,
-    fontWeight: "800",
+    fontFamily: font.bold,
   },
   footerText: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
   },
   form: {
     gap: spacing.lg,
   },
+  googleG: {
+    color: "#4285F4", // Google brand blue — intentional
+    fontFamily: font.heavy,
+    fontSize: 16, // Google "G" glyph — intentionally larger than type.label
+  },
   guestText: {
+    ...type.label,
     color: colors.muted,
-    fontSize: 15,
-    fontWeight: "600",
     textAlign: "center",
   },
   header: {
@@ -196,31 +256,14 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   heading: {
+    ...type.display,
     color: colors.text,
-    fontSize: 26,
-    fontWeight: "900",
   },
-  input: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    color: colors.text,
-    fontSize: 16,
-    minHeight: 52,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  inputDisabled: {
-    opacity: 0.6,
+  headingAccent: {
+    color: colors.primary,
   },
   keyboardView: {
     flex: 1,
-  },
-  label: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "700",
   },
   logoRow: {
     paddingBottom: spacing.xl,
@@ -235,12 +278,8 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 24,
   },
-  spinner: {
-    alignSelf: "center",
-  },
   subheading: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 16,
-    lineHeight: 22,
   },
 });

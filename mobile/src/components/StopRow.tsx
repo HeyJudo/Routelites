@@ -1,6 +1,18 @@
+import { Check, X } from "lucide-react-native";
+import type { ComponentProps } from "react";
+import { useEffect, useRef } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, font, radius, spacing, type } from "../theme";
 import type { ActiveDeliveryStop } from "../types/delivery";
 import { StatusChip } from "./StatusChip";
 
@@ -10,86 +22,147 @@ type StopRowProps = {
   isActive: boolean;
   legDistanceM?: number;
   onPress: () => void;
+  // Reanimated passthrough props for list animations
+  entering?: ComponentProps<typeof Animated.View>["entering"];
+  exiting?: ComponentProps<typeof Animated.View>["exiting"];
+  layout?: ComponentProps<typeof Animated.View>["layout"];
 };
 
-export function StopRow({ stop, index, isActive, legDistanceM, onPress }: StopRowProps) {
+export function StopRow({
+  stop,
+  index,
+  isActive,
+  legDistanceM,
+  onPress,
+  entering,
+  exiting,
+  layout,
+}: StopRowProps) {
   const isDone = stop.status === "delivered" || stop.status === "failed";
 
+  // Track previous status to detect pending → done transition.
+  // hasMounted ref prevents the pop animation on rows that are already-done at
+  // first render (e.g. re-entering the screen mid-run).
+  const prevStatusRef = useRef(stop.status);
+  const hasMountedRef = useRef(false);
+
+  const badgeScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      prevStatusRef.current = stop.status;
+      return;
+    }
+
+    const prev = prevStatusRef.current;
+    const curr = stop.status;
+
+    if (prev === "pending" && (curr === "delivered" || curr === "failed")) {
+      // Badge pop: 1 → 1.25 → 1, ~280 ms total
+      badgeScale.value = withSequence(
+        withSpring(1.25, { damping: 6, stiffness: 300, mass: 0.5 }),
+        withTiming(1, { duration: 140 }),
+      );
+    }
+
+    prevStatusRef.current = curr;
+  }, [stop.status]);
+
+  const badgeAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: badgeScale.value }],
+  }));
+
   return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.row,
-        isActive && styles.rowActive,
-        isDone && styles.rowDone,
-        pressed && styles.rowPressed,
-      ]}
-      accessibilityLabel={`Stop ${index}: ${stop.label}`}
-    >
-      {/* Badge */}
-      <View
-        style={[
-          styles.badge,
-          stop.status === "delivered" && styles.badgeDelivered,
-          stop.status === "failed" && styles.badgeFailed,
-          isActive && styles.badgeActive,
+    <Animated.View entering={entering} exiting={exiting} layout={layout}>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          styles.row,
+          isActive && styles.rowActive,
+          isDone && styles.rowDone,
+          pressed && styles.rowPressed,
         ]}
+        accessibilityLabel={`Stop ${index}: ${stop.label}`}
       >
-        <Text
-          style={[
-            styles.badgeText,
-            (stop.status === "delivered" || isActive) && styles.badgeTextLight,
-            stop.status === "failed" && styles.badgeTextLight,
-          ]}
-        >
-          {index}
-        </Text>
-      </View>
+        {/* Badge — wrapped in Animated.View for scale pop */}
+        <Animated.View style={badgeAnimStyle}>
+          <View
+            style={[
+              styles.badge,
+              stop.status === "delivered" && styles.badgeDeliveredSolid,
+              stop.status === "failed" && styles.badgeFailedSolid,
+              isActive && styles.badgeActive,
+            ]}
+          >
+            {stop.status === "delivered" ? (
+              <Animated.View entering={FadeIn.duration(150)}>
+                <Check color={colors.textOnPrimary} size={14} strokeWidth={2.5} />
+              </Animated.View>
+            ) : stop.status === "failed" ? (
+              <Animated.View entering={FadeIn.duration(150)}>
+                <X color={colors.textOnPrimary} size={14} strokeWidth={2.5} />
+              </Animated.View>
+            ) : (
+              <Text
+                style={[
+                  styles.badgeText,
+                  isActive && styles.badgeTextLight,
+                ]}
+              >
+                {index}
+              </Text>
+            )}
+          </View>
+        </Animated.View>
 
-      {/* Info */}
-      <View style={styles.info}>
-        <Text
-          style={[styles.label, isDone && styles.labelDone]}
-          numberOfLines={1}
-        >
-          {stop.label}
-        </Text>
-
-        {/* Show address only for pending stops */}
-        {!isDone && stop.address ? (
-          <Text style={styles.address} numberOfLines={1}>
-            {stop.address}
+        {/* Info */}
+        <View style={styles.info}>
+          <Text
+            style={[styles.label, isDone && styles.labelDone]}
+            numberOfLines={1}
+          >
+            {stop.label}
           </Text>
-        ) : null}
 
-        {/* Show note if present */}
-        {isDone && stop.note ? (
-          <Text style={styles.note} numberOfLines={1}>
-            Note: {stop.note}
-          </Text>
-        ) : null}
-      </View>
+          {/* Address fades out (exiting) when stop becomes done */}
+          {!isDone && stop.address ? (
+            <Animated.View exiting={FadeOut.duration(200)}>
+              <Text style={styles.address} numberOfLines={1}>
+                {stop.address}
+              </Text>
+            </Animated.View>
+          ) : null}
 
-      {/* Right side: distance (pending) or status chip (done) */}
-      <View style={styles.right}>
-        {isDone ? (
-          <StatusChip status={stop.status} />
-        ) : (
-          legDistanceM != null && (
-            <Text style={styles.dist}>
-              {(legDistanceM / 1000).toFixed(1)} km
+          {/* Note shown after completion */}
+          {isDone && stop.note ? (
+            <Text style={styles.note} numberOfLines={1}>
+              Note: {stop.note}
             </Text>
-          )
-        )}
-      </View>
-    </Pressable>
+          ) : null}
+        </View>
+
+        {/* Right side: distance (pending) or animated status chip (done) */}
+        <View style={styles.right}>
+          {isDone ? (
+            <StatusChip status={stop.status} animated />
+          ) : (
+            legDistanceM != null && (
+              <Text style={styles.dist}>
+                {(legDistanceM / 1000).toFixed(1)} km
+              </Text>
+            )
+          )}
+        </View>
+      </Pressable>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   address: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 11,
     marginTop: 2,
   },
   badge: {
@@ -108,26 +181,26 @@ const styles = StyleSheet.create({
     height: 32,
     width: 32,
   },
-  badgeDelivered: {
-    backgroundColor: colors.deliveredSoft,
+  badgeDeliveredSolid: {
+    backgroundColor: colors.delivered,
     borderColor: colors.delivered,
   },
-  badgeFailed: {
-    backgroundColor: colors.dangerSoft,
+  badgeFailedSolid: {
+    backgroundColor: colors.danger,
     borderColor: colors.danger,
   },
   badgeText: {
+    ...type.mono,
     color: colors.primaryDark,
-    fontSize: 11,
-    fontWeight: "900",
+    fontFamily: font.semibold,
+    letterSpacing: 0,
   },
   badgeTextLight: {
     color: colors.card,
   },
   dist: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
     minWidth: 44,
     textAlign: "right",
   },
@@ -136,17 +209,16 @@ const styles = StyleSheet.create({
     marginLeft: spacing.md,
   },
   label: {
+    ...type.label,
     color: colors.text,
-    fontSize: 13,
-    fontWeight: "700",
   },
   labelDone: {
     color: colors.muted,
     textDecorationLine: "line-through",
   },
   note: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 11,
     fontStyle: "italic",
     marginTop: 2,
   },

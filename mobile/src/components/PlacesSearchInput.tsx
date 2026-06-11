@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { GooglePlacesAutocomplete } from "react-native-google-places-autocomplete";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, shadow, spacing, type } from "../theme";
 
 export type PlaceResult = {
   lat: number;
@@ -111,8 +111,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   description: {
+    ...type.caption,
     color: colors.text,
-    fontSize: 14,
   },
   listView: {
     backgroundColor: colors.card,
@@ -126,11 +126,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 20,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
+    ...shadow.sm,
   },
   poweredContainer: {
     display: "none",
@@ -145,22 +141,22 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
   },
   suggestionMain: {
+    ...type.body,
     color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
   },
   suggestionRow: {
     gap: 2,
   },
   suggestionSecondary: {
+    ...type.label,
     color: colors.muted,
-    fontSize: 13,
   },
   textInput: {
+    ...type.body,
     backgroundColor: colors.card,
     borderRadius: radius.pill,
     color: colors.text,
-    fontSize: 16,
+    fontSize: 16, // intentionally larger than type.body(15) for touch-target legibility
     height: 52,
     paddingHorizontal: 16,
   },

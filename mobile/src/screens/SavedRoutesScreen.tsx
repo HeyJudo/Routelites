@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
-  BookmarkX,
+  FolderOpen,
   MapPin,
   Pencil,
   Play,
@@ -11,9 +11,7 @@ import {
 } from "lucide-react-native";
 import { useCallback, useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
-  FlatList,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -23,6 +21,16 @@ import {
   TextInput,
   View,
 } from "react-native";
+import Animated, {
+  FadeInUp,
+  FadeOutLeft,
+  LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { optimizeRoute } from "../api/routes";
 import {
@@ -31,16 +39,82 @@ import {
   updateRoute,
   type SavedRoute,
 } from "../api/savedRoutes";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { ResumeRunBanner } from "../components/ResumeRunBanner";
 import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { useDeliveryRunStore } from "../state/deliveryRunStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, motion, radius, spacing, type } from "../theme";
 import type { OptimizeResponse, RouteLeg } from "../types/api";
 
 type SavedRoutesScreenProps = BottomTabScreenProps<MainTabParamList, "MyRoutes">;
 
+// ---------------------------------------------------------------------------
+// SkeletonCard
+// ---------------------------------------------------------------------------
+
+function SkeletonCard() {
+  const opacity = useSharedValue(1);
+
+  useEffect(() => {
+    opacity.value = withRepeat(
+      withTiming(0.5, { duration: motion.slow }),
+      -1,
+      true,
+    );
+  }, [opacity]);
+
+  const animStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View style={[skeletonStyles.card, animStyle]}>
+      <View style={skeletonStyles.titleBar} />
+      <View style={skeletonStyles.metaBar} />
+      <View style={skeletonStyles.btnRow}>
+        <View style={skeletonStyles.btnBlock} />
+        <View style={skeletonStyles.btnBlock} />
+      </View>
+    </Animated.View>
+  );
+}
+
+const skeletonStyles = StyleSheet.create({
+  btnBlock: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.pill,
+    flex: 1,
+    height: 40,
+  },
+  btnRow: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
+  card: {
+    backgroundColor: colors.card,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    padding: spacing.lg,
+  },
+  metaBar: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: 4,
+    height: 14,
+    marginTop: spacing.sm,
+    width: "50%",
+  },
+  titleBar: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: 4,
+    height: 18,
+    width: "70%",
+  },
+});
+
+// ---------------------------------------------------------------------------
+// SavedRoutesScreen
+// ---------------------------------------------------------------------------
+
 export function SavedRoutesScreen({ navigation }: SavedRoutesScreenProps) {
   const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
 
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -190,43 +264,60 @@ export function SavedRoutesScreen({ navigation }: SavedRoutesScreenProps) {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={colors.primary} size="large" />
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <View
+        style={[
+          styles.header,
+          { paddingTop: insets.top + spacing.md },
+        ]}
+      >
         <Text style={styles.headerTitle}>My Routes</Text>
       </View>
 
-      {routes.length === 0 ? (
+      <ResumeRunBanner />
+
+      {loading ? (
+        <View style={styles.list}>
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      ) : routes.length === 0 ? (
         <View style={styles.empty}>
           <Route color={colors.muted} size={48} />
           <Text style={styles.emptyTitle}>No saved routes</Text>
           <Text style={styles.emptyCopy}>
-            After optimizing a route, tap "Save route" to save it here.
+            Optimize a route, then save it here.
           </Text>
+          <PrimaryButton
+            size="sm"
+            onPress={() => navigation.navigate("Planner")}
+          >
+            Plan a route
+          </PrimaryButton>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           data={routes}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <RouteCard
-              route={item}
-              isStarting={actionLoading === item.id + "-start"}
-              onLoad={() => handleLoad(item)}
-              onStartRun={() => handleStartRun(item)}
-              onRename={() => openRename(item)}
-              onDelete={() => handleDelete(item)}
-            />
+          itemLayoutAnimation={LinearTransition.springify()}
+          renderItem={({ item, index }) => (
+            <Animated.View
+              entering={FadeInUp.delay(index * 50).duration(motion.base)}
+              exiting={FadeOutLeft.duration(200)}
+              layout={LinearTransition.springify()}
+            >
+              <RouteCard
+                route={item}
+                isStarting={actionLoading === item.id + "-start"}
+                onLoad={() => handleLoad(item)}
+                onStartRun={() => handleStartRun(item)}
+                onRename={() => openRename(item)}
+                onDelete={() => handleDelete(item)}
+              />
+            </Animated.View>
           )}
         />
       )}
@@ -255,23 +346,21 @@ export function SavedRoutesScreen({ navigation }: SavedRoutesScreenProps) {
               selectionColor={colors.primary}
             />
             <View style={styles.modalActions}>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnCancel]}
+              <PrimaryButton
+                size="sm"
+                variant="secondary"
                 onPress={() => setRenameId(null)}
               >
-                <Text style={styles.modalBtnCancelText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.modalBtn,
-                  styles.modalBtnConfirm,
-                  !renameDraft.trim() && styles.modalBtnDisabled,
-                ]}
+                Cancel
+              </PrimaryButton>
+              <PrimaryButton
+                size="sm"
+                variant="primary"
                 onPress={confirmRename}
                 disabled={!renameDraft.trim()}
               >
-                <Text style={styles.modalBtnConfirmText}>Save</Text>
-              </Pressable>
+                Save
+              </PrimaryButton>
             </View>
           </View>
         </KeyboardAvoidingView>
@@ -355,30 +444,27 @@ function RouteCard({
 
       {/* Action buttons */}
       <View style={cardStyles.actions}>
-        <Pressable
-          style={cardStyles.loadBtn}
-          onPress={onLoad}
-          accessibilityLabel="Load route into planner"
-        >
-          <BookmarkX color={colors.primaryDark} size={15} />
-          <Text style={cardStyles.loadBtnText}>Load</Text>
-        </Pressable>
+        <View style={cardStyles.loadBtnWrapper}>
+          <PrimaryButton
+            size="sm"
+            variant="outline"
+            icon={<FolderOpen color={colors.primaryDark} size={15} />}
+            onPress={onLoad}
+          >
+            Load
+          </PrimaryButton>
+        </View>
 
-        <Pressable
-          style={[cardStyles.startBtn, isStarting && cardStyles.startBtnDisabled]}
-          onPress={onStartRun}
-          disabled={isStarting}
-          accessibilityLabel="Start delivery run"
-        >
-          {isStarting ? (
-            <ActivityIndicator color={colors.card} size="small" />
-          ) : (
-            <Play color={colors.card} size={14} fill={colors.card} />
-          )}
-          <Text style={cardStyles.startBtnText}>
-            {isStarting ? "Starting…" : "Start run"}
-          </Text>
-        </Pressable>
+        <View style={cardStyles.startBtnWrapper}>
+          <PrimaryButton
+            size="sm"
+            loading={isStarting}
+            icon={<Play color={colors.textOnPrimary} size={14} fill={colors.textOnPrimary} />}
+            onPress={onStartRun}
+          >
+            Start run
+          </PrimaryButton>
+        </View>
       </View>
     </View>
   );
@@ -389,12 +475,6 @@ function RouteCard({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  center: {
-    alignItems: "center",
-    backgroundColor: colors.background,
-    flex: 1,
-    justifyContent: "center",
-  },
   container: { backgroundColor: colors.background, flex: 1 },
   empty: {
     alignItems: "center",
@@ -404,44 +484,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   emptyCopy: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
     textAlign: "center",
   },
-  emptyTitle: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  emptyTitle: { ...type.title, color: colors.text },
   header: {
     borderBottomColor: colors.border,
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.lg,
-    paddingTop: 56,
   },
-  headerTitle: { color: colors.text, fontSize: 28, fontWeight: "900" },
+  headerTitle: { ...type.display, color: colors.text },
   list: { gap: spacing.md, padding: spacing.lg },
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  modalBtn: {
-    borderRadius: radius.sm,
-    flex: 1,
-    paddingVertical: 12,
-  },
-  modalBtnCancel: {
-    backgroundColor: colors.mutedSoft,
-  },
-  modalBtnCancelText: {
-    color: colors.text,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  modalBtnConfirm: {
-    backgroundColor: colors.primary,
-  },
-  modalBtnConfirmText: {
-    color: colors.card,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  modalBtnDisabled: { opacity: 0.4 },
   modalCard: {
     backgroundColor: colors.card,
     borderRadius: radius.lg,
@@ -449,21 +505,21 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   modalInput: {
+    ...type.body,
     backgroundColor: colors.mutedSoft,
     borderRadius: radius.sm,
     color: colors.text,
-    fontSize: 16,
     marginTop: spacing.md,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   modalOverlay: {
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: "center",
   },
-  modalTitle: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  modalTitle: { ...type.title, color: colors.text },
 });
 
 const cardStyles = StyleSheet.create({
@@ -482,35 +538,12 @@ const cardStyles = StyleSheet.create({
     justifyContent: "center",
     width: 32,
   },
-  loadBtn: {
-    alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  loadBtnText: { color: colors.primaryDark, fontSize: 13, fontWeight: "800" },
+  loadBtnWrapper: { flex: 1 },
   meta: { alignItems: "center", flexDirection: "row", gap: 4, marginTop: 3 },
-  metaDot: { color: colors.muted, fontSize: 11 },
-  metaText: { color: colors.muted, fontSize: 12 },
-  name: { color: colors.text, fontSize: 16, fontWeight: "900" },
+  metaDot: { ...type.caption, color: colors.muted },
+  metaText: { ...type.caption, color: colors.muted },
+  name: { ...type.heading, color: colors.text },
   nameBlock: { flex: 1, marginRight: spacing.sm },
   row: { alignItems: "flex-start", flexDirection: "row" },
-  startBtn: {
-    alignItems: "center",
-    backgroundColor: colors.primary,
-    borderRadius: radius.sm,
-    flex: 1,
-    flexDirection: "row",
-    gap: spacing.xs,
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  startBtnDisabled: { opacity: 0.6 },
-  startBtnText: { color: colors.card, fontSize: 13, fontWeight: "800" },
+  startBtnWrapper: { flex: 1 },
 });

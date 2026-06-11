@@ -36,11 +36,20 @@ export function AppNavigator() {
   const authHydrated = useAuthStore((s) => s.hasHydrated);
   const session = useAuthStore((s) => s.session);
   const isGuest = useAuthStore((s) => s.isGuest);
+  const postSignOutScreen = useAuthStore((s) => s.postSignOutScreen);
+
+  const isAuthed = Boolean(session) || isGuest;
 
   useEffect(() => {
     useAuthStore.getState().initialize();
     useDeliveryRunStore.getState().hydrateActiveRun();
   }, []);
+
+  useEffect(() => {
+    if (!isAuthed && postSignOutScreen === "SignUp") {
+      useAuthStore.getState().setPostSignOutScreen(null);
+    }
+  }, [isAuthed, postSignOutScreen]);
 
   if (!authHydrated || !draftHydrated) {
     return (
@@ -50,7 +59,6 @@ export function AppNavigator() {
     );
   }
 
-  const isAuthed = Boolean(session) || isGuest;
   const initialRoute: keyof RootStackParamList = storeLocation
     ? "MainTabs"
     : "Splash";
@@ -76,7 +84,7 @@ export function AppNavigator() {
       }}
     >
       <Stack.Navigator
-        initialRouteName={isAuthed ? initialRoute : "SignIn"}
+        initialRouteName={isAuthed ? initialRoute : (postSignOutScreen === "SignUp" ? "SignUp" : "SignIn")}
         screenOptions={{
           animation: "fade",
           contentStyle: { backgroundColor: colors.background },
@@ -98,10 +106,18 @@ export function AppNavigator() {
             <Stack.Screen
               name="Loading"
               component={LoadingScreen}
-              options={{ presentation: "modal" }}
+              options={{ presentation: "modal", animation: "fade_from_bottom" }}
             />
-            <Stack.Screen name="Results" component={ResultsScreen} />
-            <Stack.Screen name="ActiveDelivery" component={ActiveDeliveryScreen} />
+            <Stack.Screen
+              name="Results"
+              component={ResultsScreen}
+              options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+              name="ActiveDelivery"
+              component={ActiveDeliveryScreen}
+              options={{ animation: "slide_from_bottom" }}
+            />
           </>
         )}
       </Stack.Navigator>

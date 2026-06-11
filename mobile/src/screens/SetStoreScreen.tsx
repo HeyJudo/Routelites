@@ -14,7 +14,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { demoStore } from "../data/demoRoute";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 import { isInsideNCR } from "../utils/validation";
 
@@ -153,9 +153,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   currentLocationText: {
+    ...type.body,
     color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "700",
   },
   errorCard: {
     backgroundColor: colors.dangerSoft,
@@ -163,9 +162,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   errorText: {
+    ...type.label,
     color: colors.danger,
-    fontSize: 14,
-    fontWeight: "600",
   },
   footer: {
     gap: spacing.md,
@@ -193,12 +191,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   searchText: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 16,
   },
   selectedAddress: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 13,
   },
   selectedCard: {
     alignItems: "center",
@@ -221,32 +219,27 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   selectedLabel: {
+    ...type.heading,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
   },
   skipText: {
+    ...type.label,
     color: colors.muted,
-    fontSize: 14,
-    fontWeight: "600",
     textAlign: "center",
   },
   stepLabel: {
+    ...type.caption,
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 1,
     marginBottom: 4,
   },
   subtitle: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
   },
   title: {
+    ...type.display,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
     marginBottom: 8,
   },
 });

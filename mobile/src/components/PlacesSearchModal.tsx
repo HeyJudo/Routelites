@@ -18,7 +18,7 @@ import {
   X,
 } from "lucide-react-native";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 
 export type PlaceResult = {
   lat: number;
@@ -305,17 +305,15 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   addedBadgeText: {
+    ...type.label,
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: "700",
   },
   addedInfo: {
     flex: 1,
   },
   addedName: {
+    ...type.body,
     color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
   },
   addedRow: {
     alignItems: "center",
@@ -367,16 +365,15 @@ const styles = StyleSheet.create({
     paddingTop: 80,
   },
   emptySubtitle: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 14,
     lineHeight: 20,
     marginTop: 8,
     textAlign: "center",
   },
   emptyTitle: {
+    ...type.heading,
     color: colors.text,
-    fontSize: 17,
-    fontWeight: "900",
   },
   header: {
     alignItems: "center",
@@ -397,8 +394,8 @@ const styles = StyleSheet.create({
     paddingVertical: 32,
   },
   loadingText: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
   },
   resultIcon: {
     alignItems: "center",
@@ -409,9 +406,8 @@ const styles = StyleSheet.create({
     width: 40,
   },
   resultMain: {
+    ...type.body,
     color: colors.text,
-    fontSize: 15,
-    fontWeight: "700",
   },
   resultRow: {
     alignItems: "center",
@@ -421,8 +417,8 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   resultSecondary: {
+    ...type.label,
     color: colors.muted,
-    fontSize: 13,
     marginTop: 2,
   },
   resultText: {
@@ -432,18 +428,18 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   sectionLabel: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: "700",
     paddingBottom: 8,
     paddingHorizontal: 20,
     textTransform: "uppercase",
   },
   textInput: {
+    ...type.body,
     backgroundColor: colors.mutedSoft,
     borderRadius: radius.pill,
     color: colors.text,
-    fontSize: 16,
+    fontSize: 16, // intentionally larger than type.body(15) for touch-target legibility
     height: 44,
     paddingHorizontal: 16,
     paddingRight: 44,

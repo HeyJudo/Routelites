@@ -1,40 +1,46 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as Haptics from "expo-haptics";
 import { Bookmark, ChevronLeft, Info, Play, Store } from "lucide-react-native";
-import { useRef, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Alert,
-  Animated,
-  Dimensions,
   KeyboardAvoidingView,
   Modal,
-  PanResponder,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
+  useWindowDimensions,
 } from "react-native";
+import Animated, {
+  Easing,
+  useAnimatedProps,
+  useSharedValue,
+  withSpring,
+  withTiming,
+  ZoomIn,
+} from "react-native-reanimated";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import BottomSheet from "@gorhom/bottom-sheet";
 
 import { AlgorithmDetailsModal } from "../components/AlgorithmDetailsModal";
+import { AppBottomSheet, BottomSheetScrollView } from "../components/AppBottomSheet";
+import { MapToast } from "../components/MapToast";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { metroManilaRegion } from "../data/demoRoute";
-import { colors, radius, spacing } from "../theme";
+import { mapStyle } from "../data/mapStyle";
+import { colors, font, motion, radius, shadow, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 import { createRoute } from "../api/savedRoutes";
 import { useDeliveryRunStore } from "../state/deliveryRunStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import type { OptimizeResponse, RouteLeg } from "../types/api";
+import type { RouteLeg } from "../types/api";
 
 type ResultsScreenProps = NativeStackScreenProps<RootStackParamList, "Results">;
 type ViewMode = "optimized" | "naive" | "compare";
 
-const SCREEN_H = Dimensions.get("window").height;
-const COLLAPSED = Math.round(SCREEN_H * 0.42);
-const EXPANDED  = Math.round(SCREEN_H * 0.88);
-const MIDPOINT  = (COLLAPSED + EXPANDED) / 2;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function legsToCoords(legs: RouteLeg[]) {
   return legs.flatMap((leg) =>
@@ -42,76 +48,170 @@ function legsToCoords(legs: RouteLeg[]) {
   );
 }
 
+/** Quadratic ease-in-out, t in [0,1] */
+function easeInOut(t: number): number {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+}
+
+// ── AnimatedNumber ─────────────────────────────────────────────────────────────
+// Standard Reanimated number-ticker using Animated.createAnimatedComponent(TextInput).
+// TextInput is used because its `text` prop is animatable on the UI thread via
+// useAnimatedProps, giving a true JS-thread-free count-up effect.
+
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+
+type AnimatedNumberProps = {
+  target: number;
+  // Formatting is declarative (decimals + suffix) rather than a function prop:
+  // a plain JS function captured in useAnimatedProps is not callable on the UI thread.
+  decimals: number;
+  suffix: string;
+  style?: object | object[];
+};
+
+function AnimatedNumber({ target, decimals, suffix, style }: AnimatedNumberProps) {
+  const sv = useSharedValue(0);
+
+  useEffect(() => {
+    sv.value = withTiming(target, {
+      duration: 600,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [target]);
+
+  const animatedProps = useAnimatedProps(() => {
+    const text = sv.value.toFixed(decimals) + suffix;
+    return { text, defaultValue: text };
+  });
+
+  return (
+    <AnimatedTextInput
+      animatedProps={animatedProps}
+      editable={false}
+      // @ts-ignore pointerEvents is valid on TextInput for RN
+      pointerEvents="none"
+      style={[styles.animatedNumberBase, style]}
+      underlineColorAndroid="transparent"
+      caretHidden
+    />
+  );
+}
+
+// ── ResultsScreen ──────────────────────────────────────────────────────────────
+
 export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const { response } = route.params;
+  const { height: windowHeight } = useWindowDimensions();
 
-  const [mode, setMode]           = useState<ViewMode>("optimized");
+  const [mode, setMode]               = useState<ViewMode>("optimized");
   const [showDetails, setShowDetails] = useState(false);
-  const [isExpanded, setIsExpanded]   = useState(false);
   const [startingRun, setStartingRun] = useState(false);
+
+  // Toast
+  const [toastMsg, setToastMsg]         = useState("");
+  const [toastVisible, setToastVisible] = useState(false);
 
   // Save route modal
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [routeNameDraft, setRouteNameDraft] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // ── Animated sheet height ──────────────────────────────────────────────────
-  const sheetAnim  = useRef(new Animated.Value(COLLAPSED)).current;
-  const lastHeight = useRef(COLLAPSED);
+  // Segmented control
+  const [segmentContainerWidth, setSegmentContainerWidth] = useState(0);
+  const segmentIndex = mode === "optimized" ? 0 : mode === "naive" ? 1 : 2;
+  const thumbTranslateX = useSharedValue(0);
 
-  const snapTo = (target: number) => {
-    lastHeight.current = target;
-    setIsExpanded(target === EXPANDED);
-    Animated.spring(sheetAnim, {
-      toValue: target,
-      useNativeDriver: false,
-      tension: 65,
-      friction: 12,
-    }).start();
-  };
+  // Marker tracksViewChanges
+  const [trackMarkers, setTrackMarkers] = useState(true);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 6,
-      onPanResponderMove: (_, gs) => {
-        const next = Math.max(
-          COLLAPSED,
-          Math.min(EXPANDED, lastHeight.current - gs.dy),
-        );
-        sheetAnim.setValue(next);
-      },
-      onPanResponderRelease: (_, gs) => {
-        const current = lastHeight.current - gs.dy;
-        // Also snap based on swipe velocity
-        if (gs.vy < -0.5 || current > MIDPOINT) {
-          snapTo(EXPANDED);
-        } else {
-          snapTo(COLLAPSED);
-        }
-      },
-    }),
-  ).current;
+  const sheetRef = useRef<BottomSheet>(null);
 
-  // ── Route data ─────────────────────────────────────────────────────────────
+  // ── Route data ────────────────────────────────────────────────────────────
   const optimizedCoords = legsToCoords(response.optimized_route.legs);
   const naiveCoords     = legsToCoords(response.naive_route.legs);
   const activeRoute =
     mode === "naive" ? response.naive_route : response.optimized_route;
 
-  // Depot = always order[0]; works for demo ("store") and real OSM node IDs
   const depotId: string = response.optimized_route.order[0];
 
   const mapRef = useRef<MapView>(null);
+  const mapEdgePaddingBottom = windowHeight * 0.45 + 20;
+
+  // ── Polyline draw-on ──────────────────────────────────────────────────────
+  // drawProgress advances 0→1 via a requestAnimationFrame loop over DRAW_DURATION ms.
+  // On mode change the previous loop is cancelled and a new one starts from 0.
+  // The naive/gray dashed line in compare mode renders instantly (no draw-on).
+  const DRAW_DURATION = 900;
+  const [drawProgress, setDrawProgress] = useState(0);
+  const rafRef       = useRef<ReturnType<typeof requestAnimationFrame> | null>(null);
+  const drawStartRef = useRef<number | null>(null);
+
+  const startDrawOn = useCallback(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    drawStartRef.current = null;
+    setDrawProgress(0);
+
+    const tick = (timestamp: number) => {
+      if (drawStartRef.current === null) drawStartRef.current = timestamp;
+      const elapsed = timestamp - drawStartRef.current;
+      const rawT    = Math.min(elapsed / DRAW_DURATION, 1);
+      setDrawProgress(easeInOut(rawT));
+      if (rawT < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    startDrawOn();
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    };
+  }, [mode]);
+
+  // ── Map fit ───────────────────────────────────────────────────────────────
   useEffect(() => {
     const coords = mode === "naive" ? naiveCoords : optimizedCoords;
     if (coords.length > 0) {
       mapRef.current?.fitToCoordinates(coords, {
-        edgePadding: { top: 60, right: 40, bottom: COLLAPSED + 20, left: 40 },
+        edgePadding: { top: 60, right: 40, bottom: mapEdgePaddingBottom, left: 40 },
         animated: true,
       });
     }
   }, [mode]);
 
+  // ── Marker tracksViewChanges cleanup ─────────────────────────────────────
+  const stopCount = activeRoute.order.filter((id: string) => id !== depotId).length;
+
+  useEffect(() => {
+    const totalMarkers = stopCount + 1; // stops + depot
+    const timer = setTimeout(
+      () => setTrackMarkers(false),
+      totalMarkers * 40 + 400,
+    );
+    return () => clearTimeout(timer);
+  }, [stopCount]);
+
+  // ── Segmented control sliding thumb ──────────────────────────────────────
+  const segmentWidth = segmentContainerWidth > 0 ? segmentContainerWidth / 3 : 0;
+
+  useEffect(() => {
+    if (segmentWidth > 0) {
+      thumbTranslateX.value = withSpring(segmentIndex * segmentWidth, motion.spring);
+    }
+  }, [segmentIndex, segmentWidth]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
   const nameFor = (id: string): string => {
     const info = response.places?.[id];
     if (info?.label) return info.label;
@@ -124,23 +224,35 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const storeLat = response.optimized_route.legs[0]?.path[0]?.lat;
   const storeLng = response.optimized_route.legs[0]?.path[0]?.lng;
 
-  const stopCount = activeRoute.order.filter((id: string) => id !== depotId).length;
   const totalKm   = (activeRoute.total_distance_m / 1000).toFixed(1);
+  const optimizedKm = response.optimized_route.total_distance_m / 1000;
+  const naiveKm     = response.naive_route.total_distance_m / 1000;
+  const savingsPct  = response.savings.percentage;
 
-  // ── Start route handler ────────────────────────────────────────────────────
+  // ── Coords with draw-on applied ───────────────────────────────────────────
+  function sliceCoords(coords: { latitude: number; longitude: number }[]) {
+    if (coords.length === 0) return coords;
+    const count = Math.max(1, Math.ceil(coords.length * drawProgress));
+    return coords.slice(0, count);
+  }
+
+  // ── Toast helper ──────────────────────────────────────────────────────────
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setToastVisible(true);
+  };
+
+  // ── Start route handler ───────────────────────────────────────────────────
   const handleStartRoute = async () => {
-    const order = response.optimized_route.order;
+    const order    = response.optimized_route.order;
     const depotIdx = order[0];
+    const stopIds  = order.filter((id: string) => id !== depotIdx);
 
-    // All entries in order that are not the depot (skips start depot + return-to-depot tail)
-    const stopIds = order.filter((id: string) => id !== depotIdx);
-
-    // Build stops in optimized visit order
     const stops = stopIds.map((id: string) => {
-      const leg = response.optimized_route.legs.find((l: RouteLeg) => l.to === id);
+      const leg  = response.optimized_route.legs.find((l: RouteLeg) => l.to === id);
       const last = leg ? leg.path[leg.path.length - 1] : null;
       return {
-        label: nameFor(id),
+        label:   nameFor(id),
         address: addressFor(id),
         lat: last?.lat ?? 0,
         lng: last?.lng ?? 0,
@@ -152,14 +264,12 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
     setStartingRun(true);
     try {
       await useDeliveryRunStore.getState().startRun({
-        optimizedOrder: order,
-        totalDistanceM: response.optimized_route.total_distance_m,
+        optimizedOrder:  order,
+        totalDistanceM:  response.optimized_route.total_distance_m,
         stops,
       });
       const newRun = useDeliveryRunStore.getState().activeRun;
-      if (newRun) {
-        navigation.navigate("ActiveDelivery", { runId: newRun.id });
-      }
+      if (newRun) navigation.navigate("ActiveDelivery", { runId: newRun.id });
     } catch (err) {
       console.warn("[ResultsScreen] startRun failed:", err);
     } finally {
@@ -167,11 +277,11 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
     }
   };
 
-  // ── Save route handler ─────────────────────────────────────────────────────
+  // ── Save route handler ────────────────────────────────────────────────────
   const handleSaveRoute = async () => {
     const { storeLocation, stops } = useRouteDraftStore.getState();
     if (!storeLocation || stops.length === 0) {
-      Alert.alert("Nothing to save", "Add stops to your route first.");
+      showToast("Add stops to your route first.");
       return;
     }
     setSaving(true);
@@ -179,55 +289,66 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
       await createRoute(routeNameDraft.trim() || "My Route", storeLocation, stops);
       setShowSaveModal(false);
       setRouteNameDraft("");
-      Alert.alert("Saved", "Route saved to My Routes.");
+      showToast("Saved to My Routes");
     } catch {
-      Alert.alert("Error", "Could not save route. Try again.");
+      showToast("Could not save route");
     } finally {
       setSaving(false);
     }
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <View style={styles.container}>
+
       {/* Full-screen map */}
       <MapView
         ref={mapRef}
+        customMapStyle={mapStyle}
         initialRegion={metroManilaRegion}
         showsCompass={false}
         showsMyLocationButton={false}
         style={StyleSheet.absoluteFill}
       >
+        {/* Naive dashed line — in compare mode renders instantly (no draw-on for gray line) */}
         {(mode === "naive" || mode === "compare") && (
           <Polyline
-            coordinates={naiveCoords}
+            coordinates={mode === "compare" ? naiveCoords : sliceCoords(naiveCoords)}
             strokeColor="#9e9e9e"
             strokeWidth={3}
             lineDashPattern={[8, 6]}
             zIndex={1}
           />
         )}
+
+        {/* Optimized line — draw-on applies */}
         {(mode === "optimized" || mode === "compare") && (
           <Polyline
-            coordinates={optimizedCoords}
+            coordinates={sliceCoords(optimizedCoords)}
             strokeColor={colors.primary}
             strokeWidth={4}
             zIndex={2}
           />
         )}
 
+        {/* Depot marker — stagger index 0 */}
         {storeLat != null && storeLng != null && (
           <Marker
             key="depot-marker"
             coordinate={{ latitude: storeLat, longitude: storeLng }}
             title={nameFor(depotId)}
+            tracksViewChanges={trackMarkers}
             zIndex={10}
           >
-            <View style={styles.storeMarker}>
-              <Text style={styles.storeMarkerText}>S</Text>
-            </View>
+            <Animated.View entering={ZoomIn.delay(0).duration(200)}>
+              <View style={styles.storeMarker}>
+                <Store color={colors.textOnPrimary} size={16} />
+              </View>
+            </Animated.View>
           </Marker>
         )}
 
+        {/* Stop markers — staggered ZoomIn, 40 ms apart */}
         {(mode === "compare"
           ? [response.optimized_route, response.naive_route]
           : [activeRoute]
@@ -235,21 +356,25 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           let n = 0;
           return r.order
             .filter((id: string) => id !== depotId)
-            .map((id: string) => {
+            .map((id: string, stopIdx: number) => {
               n += 1;
               const leg = r.legs.find((l: RouteLeg) => l.to === id);
               if (!leg) return null;
-              const last = leg.path[leg.path.length - 1];
+              const last     = leg.path[leg.path.length - 1];
+              const delayMs  = (stopIdx + 1) * 40; // depot=0ms, stop 1=40ms, …
               return (
                 <Marker
                   key={`marker-${routeIdx}-${id}`}
                   coordinate={{ latitude: last.lat, longitude: last.lng }}
                   title={nameFor(id)}
+                  tracksViewChanges={trackMarkers}
                   zIndex={5}
                 >
-                  <View style={styles.stopMarker}>
-                    <Text style={styles.stopMarkerText}>{n}</Text>
-                  </View>
+                  <Animated.View entering={ZoomIn.delay(delayMs).duration(200)}>
+                    <View style={styles.stopMarker}>
+                      <Text style={styles.stopMarkerText}>{n}</Text>
+                    </View>
+                  </Animated.View>
                 </Marker>
               );
             });
@@ -259,107 +384,150 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
       {/* Back button */}
       <Pressable
         style={styles.backButton}
-        onPress={() => navigation.navigate("MainTabs")}
+        onPress={() => navigation.goBack()}
         accessibilityLabel="Back to planner"
       >
         <ChevronLeft color={colors.primaryDark} size={24} />
       </Pressable>
 
-      {/* ── Swipeable bottom sheet ─────────────────────────────────────────── */}
-      <Animated.View style={[styles.sheet, { height: sheetAnim }]}>
+      {/* Toast — absolute, over map */}
+      <MapToast
+        message={toastMsg}
+        visible={toastVisible}
+        onDismiss={() => setToastVisible(false)}
+      />
 
-        {/* Drag handle — entire area is the pan target */}
-        <View {...panResponder.panHandlers} style={styles.dragArea}>
-          <View style={styles.handle} />
-          {/* Header inside the drag area so users can drag from it too */}
-          <View style={styles.sheetHeader}>
-            <Text style={styles.title}>Route Results</Text>
-            <Pressable onPress={() => setShowDetails(true)}>
-              <View style={styles.detailsLink}>
-                <Info color={colors.primary} size={15} />
-                <Text style={styles.linkText}>Algorithm details</Text>
-              </View>
-            </Pressable>
-          </View>
+      {/* ── Bottom sheet ──────────────────────────────────────────────────── */}
+      <AppBottomSheet
+        ref={sheetRef}
+        snapPoints={["45%", "88%"]}
+        index={0}
+      >
+        {/* Info button — right-aligned, opens algorithm details */}
+        <View style={styles.statsHeaderRow}>
+          <Pressable
+            onPress={() => setShowDetails(true)}
+            style={styles.infoButton}
+            accessibilityLabel="Algorithm details"
+          >
+            <Info color={colors.muted} size={20} />
+          </Pressable>
         </View>
 
-        {/* Stats row */}
+        {/* Hero stats row: Saved (hero, ~40% width) | Optimized | Naive */}
         <View style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardHighlight]}>
-            <Text style={styles.statValue}>
-              {(response.optimized_route.total_distance_m / 1000).toFixed(2)} km
-            </Text>
-            <Text style={styles.statLabel}>Optimized</Text>
+          {/* Hero: Saved */}
+          <View style={[styles.statCard, styles.heroCard]}>
+            <AnimatedNumber
+              target={savingsPct}
+              decimals={1}
+              suffix="%"
+              style={[type.title, { color: colors.delivered }]}
+            />
+            <Text style={[type.caption, styles.statLabel]}>Saved</Text>
           </View>
+
+          {/* Optimized */}
+          <View style={[styles.statCard, styles.optimizedCard]}>
+            <AnimatedNumber
+              target={optimizedKm}
+              decimals={2}
+              suffix=" km"
+              style={[type.heading, { color: colors.text }]}
+            />
+            <Text style={[type.caption, styles.statLabel]}>Optimized</Text>
+          </View>
+
+          {/* Naive */}
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {(response.naive_route.total_distance_m / 1000).toFixed(2)} km
-            </Text>
-            <Text style={styles.statLabel}>Naive</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardSaved]}>
-            <Text style={[styles.statValue, styles.statValueSaved]}>
-              {response.savings.percentage.toFixed(1)}%
-            </Text>
-            <Text style={styles.statLabel}>Saved</Text>
+            <AnimatedNumber
+              target={naiveKm}
+              decimals={2}
+              suffix=" km"
+              style={[type.heading, { color: colors.text }]}
+            />
+            <Text style={[type.caption, styles.statLabel]}>Naive</Text>
           </View>
         </View>
 
-        {/* Start route + Save route buttons */}
-        <PrimaryButton
-          onPress={handleStartRoute}
-          disabled={stopCount === 0 || startingRun}
-          icon={<Play color={colors.card} size={16} />}
-        >
-          {startingRun ? "Starting…" : "Start route"}
-        </PrimaryButton>
-
-        <Pressable
-          style={styles.saveRouteBtn}
-          onPress={() => {
-            setRouteNameDraft("");
-            setShowSaveModal(true);
-          }}
-          disabled={stopCount === 0}
-          accessibilityLabel="Save route"
-        >
-          <Bookmark color={colors.primaryDark} size={14} />
-          <Text style={styles.saveRouteBtnText}>Save route</Text>
-        </Pressable>
-
-        {/* Segmented control */}
-        <View style={[styles.segmented, { marginTop: spacing.sm }]}>
-          {(["optimized", "naive", "compare"] as ViewMode[]).map((m) => (
-            <Pressable
-              key={m}
-              style={[styles.segment, mode === m && styles.segmentActive]}
-              onPress={() => setMode(m)}
+        {/* Buttons row: Start (flex 2) + Save (flex 1) */}
+        <View style={styles.buttonsRow}>
+          <View style={{ flex: 2 }}>
+            <PrimaryButton
+              onPress={handleStartRoute}
+              disabled={stopCount === 0}
+              loading={startingRun}
+              icon={<Play color={colors.textOnPrimary} size={16} />}
             >
-              <Text style={[styles.segmentText, mode === m && styles.segmentTextActive]}>
-                {m.charAt(0).toUpperCase() + m.slice(1)}
-              </Text>
-            </Pressable>
-          ))}
+              Start route
+            </PrimaryButton>
+          </View>
+          <View style={{ flex: 1 }}>
+            <PrimaryButton
+              variant="outline"
+              onPress={() => {
+                setRouteNameDraft("");
+                setShowSaveModal(true);
+              }}
+              disabled={stopCount === 0}
+              icon={<Bookmark color={colors.primaryDark} size={16} />}
+            >
+              Save
+            </PrimaryButton>
+          </View>
+        </View>
+
+        {/* Segmented control with sliding thumb */}
+        <View
+          style={[styles.segmented, { marginTop: spacing.sm }]}
+          onLayout={(e) => setSegmentContainerWidth(e.nativeEvent.layout.width)}
+        >
+          {/* Sliding thumb — only rendered once we have a measured width */}
+          {segmentContainerWidth > 0 && (
+            <Animated.View
+              style={[
+                styles.segmentThumb,
+                { width: segmentWidth, transform: [{ translateX: thumbTranslateX }] },
+              ]}
+            />
+          )}
+
+          {(["optimized", "naive", "compare"] as ViewMode[]).map((m) => {
+            const isActive = mode === m;
+            return (
+              <Pressable
+                key={m}
+                style={styles.segment}
+                onPress={() => {
+                  setMode(m);
+                  Haptics.selectionAsync();
+                }}
+              >
+                <Text
+                  style={[
+                    styles.segmentText,
+                    isActive ? styles.segmentTextActive : styles.segmentTextInactive,
+                  ]}
+                >
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
 
         {/* Stop list header */}
         <View style={styles.stopListHeader}>
-          <Text style={styles.stopListTitle}>
+          <Text style={[type.label, { color: colors.muted }]}>
             {stopCount} stop{stopCount !== 1 ? "s" : ""} · {totalKm} km total
           </Text>
-          {!isExpanded && (
-            <Pressable onPress={() => snapTo(EXPANDED)}>
-              <Text style={styles.expandHint}>Swipe up or tap ↑</Text>
-            </Pressable>
-          )}
         </View>
 
         {/* Stop rows — scrollable */}
-        <ScrollView
+        <BottomSheetScrollView
           style={styles.stopList}
           contentContainerStyle={styles.stopListContent}
           showsVerticalScrollIndicator={false}
-          scrollEventThrottle={16}
         >
           {(() => {
             let stopNum = 0;
@@ -387,18 +555,18 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
                   </View>
 
                   <View style={styles.stopInfo}>
-                    <Text style={styles.stopName} numberOfLines={1}>
+                    <Text style={[type.label, styles.stopName]} numberOfLines={1}>
                       {isReturn ? "Return to store" : nameFor(id)}
                     </Text>
                     {!isReturn && addr ? (
-                      <Text style={styles.stopAddress} numberOfLines={1}>
+                      <Text style={[type.caption, styles.stopAddress]} numberOfLines={1}>
                         {addr}
                       </Text>
                     ) : null}
                   </View>
 
                   {leg ? (
-                    <Text style={styles.legDist}>
+                    <Text style={[type.caption, styles.legDist]}>
                       {(leg.distance_m / 1000).toFixed(1)} km
                     </Text>
                   ) : null}
@@ -406,8 +574,8 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
               );
             });
           })()}
-        </ScrollView>
-      </Animated.View>
+        </BottomSheetScrollView>
+      </AppBottomSheet>
 
       <AlgorithmDetailsModal
         metadata={response.metadata}
@@ -427,7 +595,7 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           style={saveModalStyles.overlay}
         >
           <View style={saveModalStyles.card}>
-            <Text style={saveModalStyles.title}>Save route</Text>
+            <Text style={saveModalStyles.modalTitle}>Save route</Text>
             <TextInput
               style={saveModalStyles.input}
               placeholder="Route name (e.g. Morning run)"
@@ -468,138 +636,192 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  backButton: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: radius.pill,
-    elevation: 4,
-    height: 40,
-    justifyContent: "center",
-    left: 16,
-    position: "absolute",
-    shadowColor: "#000",
-    shadowOffset: { height: 2, width: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
-    top: 50,
-    width: 40,
-    zIndex: 10,
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
   },
-  container: { flex: 1 },
-  detailsLink: { alignItems: "center", flexDirection: "row", gap: 4 },
-  dragArea: { paddingBottom: spacing.xs },
-  expandHint: { color: colors.primary, fontSize: 12, fontWeight: "700" },
-  handle: {
-    alignSelf: "center",
-    backgroundColor: colors.border,
-    borderRadius: radius.pill,
-    height: 4,
-    marginBottom: spacing.sm,
+
+  // Back button
+  backButton: {
+    position: "absolute",
+    top: 50,
+    left: spacing.lg,
     width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 20,
+    ...shadow.sm,
+  },
+
+  // Stats header (info button right-aligned)
+  statsHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  infoButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.pill,
+    backgroundColor: colors.mutedSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Stats row: hero Saved card first, then Optimized, Naive
+  statsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.md,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // Hero card: ~40% — achieved via flex: 1.4 relative to the two flex:1 cards
+  heroCard: {
+    flex: 1.4,
+    backgroundColor: colors.deliveredSoft,
+    borderColor: colors.delivered,
+  },
+  // Optimized card: subtle primary border
+  optimizedCard: {
+    borderColor: colors.primary,
+  },
+  statLabel: {
+    color: colors.muted,
+    marginTop: spacing.xs,
+  },
+  // Base style for AnimatedNumber (transparent bg, no padding, center-aligned)
+  animatedNumberBase: {
+    backgroundColor: "transparent",
+    padding: 0,
+    margin: 0,
+    color: colors.text,
+    textAlign: "center",
+  },
+
+  // Buttons row: Start (flex 2) + Save (flex 1)
+  buttonsRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.sm,
+  },
+
+  // Segmented control
+  segmented: {
+    flexDirection: "row",
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.sm,
+    padding: 3,
+    position: "relative",
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+  },
+  // Sliding thumb — absolutely positioned, translated via Reanimated withSpring
+  segmentThumb: {
+    position: "absolute",
+    top: 3,
+    bottom: 3,
+    left: 3,
+    backgroundColor: colors.card,
+    borderRadius: radius.sm - 1,
+    ...shadow.sm,
+  },
+  segment: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.sm,
+    zIndex: 1,
+  },
+  segmentText: {
+    ...type.label,
+    textAlign: "center",
+  },
+  segmentTextActive: {
+    color: colors.text,
+  },
+  segmentTextInactive: {
+    color: colors.muted,
+  },
+
+  // Stop list
+  stopListHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+  },
+  stopList: {
+    flex: 1,
+  },
+  stopListContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  stopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.border,
+    gap: spacing.md,
+  },
+  stopRowLast: {
+    borderBottomWidth: 0,
+  },
+  stopBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  storeBadge: {
+    backgroundColor: colors.primaryDark,
+  },
+  stopBadgeText: {
+    ...type.caption,
+    color: colors.textOnPrimary,
+  },
+  stopInfo: {
+    flex: 1,
+  },
+  stopName: {
+    color: colors.text,
+  },
+  stopAddress: {
+    color: colors.muted,
+    marginTop: 1,
   },
   legDist: {
     color: colors.muted,
-    fontSize: 12,
-    fontWeight: "700",
-    marginLeft: spacing.sm,
     minWidth: 44,
     textAlign: "right",
   },
-  linkText: { color: colors.primary, fontSize: 13, fontWeight: "700" },
-  segment: { borderRadius: radius.sm, flex: 1, paddingVertical: 9 },
-  segmentActive: { backgroundColor: colors.card },
-  segmentText: { color: colors.muted, fontSize: 12, textAlign: "center" },
-  segmentTextActive: { color: colors.text, fontWeight: "900" },
-  segmented: {
-    backgroundColor: colors.mutedSoft,
-    borderRadius: radius.sm,
-    flexDirection: "row",
-    gap: 4,
-    marginBottom: spacing.sm,
-    padding: 4,
-  },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    bottom: 0,
-    elevation: 12,
-    left: 0,
-    overflow: "hidden",
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    position: "absolute",
-    right: 0,
-    shadowColor: "#000",
-    shadowOffset: { height: -3, width: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-  },
-  sheetHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-  },
-  statCard: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flex: 1,
-    paddingVertical: spacing.md,
-  },
-  statCardHighlight: { borderColor: colors.primary },
-  statCardSaved: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
-  statLabel: { color: colors.muted, fontSize: 11, marginTop: 2 },
-  statValue: { color: colors.text, fontSize: 15, fontWeight: "900" },
-  statValueSaved: { color: colors.primaryDark },
-  statsRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm },
-  stopAddress: { color: colors.muted, fontSize: 11, marginTop: 1 },
-  stopBadge: {
-    alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: radius.pill,
-    borderWidth: 2,
-    flexShrink: 0,
-    height: 26,
-    justifyContent: "center",
-    width: 26,
-  },
-  stopBadgeText: { color: colors.primaryDark, fontSize: 11, fontWeight: "900" },
-  stopInfo: { flex: 1, marginLeft: spacing.md },
-  stopList: { flex: 1 },
-  stopListContent: { paddingBottom: spacing.xl },
-  stopListHeader: {
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: spacing.xs,
-  },
-  stopListTitle: { color: colors.muted, fontSize: 12, fontWeight: "700" },
-  stopMarker: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.primary,
-    borderRadius: radius.pill,
-    borderWidth: 2.5,
-    height: 28,
-    justifyContent: "center",
-    width: 28,
-  },
-  stopMarkerText: { color: colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  stopName: { color: colors.text, fontSize: 13, fontWeight: "700" },
-  stopRow: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    flexDirection: "row",
-    paddingVertical: 10,
-  },
-  stopRowLast: { borderBottomWidth: 0 },
-  storeBadge: { backgroundColor: colors.primary, borderColor: colors.primary },
+
+  // Map markers
   storeMarker: {
     alignItems: "center",
     backgroundColor: colors.primary,
@@ -609,52 +831,86 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     width: 40,
+    ...shadow.md,
   },
-  storeMarkerText: { color: colors.card, fontSize: 14, fontWeight: "900" },
-  title: { color: colors.text, fontSize: 20, fontWeight: "900" },
-  saveRouteBtn: {
+  storeMarkerText: {
+    ...type.heading,
+    fontFamily: font.heavy,
+    color: colors.textOnPrimary,
+  },
+  stopMarker: {
+    width: 28,
+    height: 28,
+    borderRadius: radius.pill,
+    backgroundColor: colors.primary,
     alignItems: "center",
-    backgroundColor: colors.primarySoft,
-    borderColor: colors.primary,
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: spacing.xs,
     justifyContent: "center",
-    marginTop: spacing.xs,
-    paddingVertical: 10,
+    borderWidth: 2,
+    borderColor: colors.card,
   },
-  saveRouteBtnText: { color: colors.primaryDark, fontSize: 13, fontWeight: "800" },
+  stopMarkerText: {
+    ...type.caption,
+    fontFamily: font.heavy,
+    color: colors.textOnPrimary,
+  },
 });
 
 const saveModalStyles = StyleSheet.create({
-  actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  btn: { borderRadius: radius.sm, flex: 1, paddingVertical: 12 },
-  btnCancel: { backgroundColor: colors.mutedSoft },
-  btnCancelText: { color: colors.text, fontWeight: "700", textAlign: "center" },
-  btnConfirm: { backgroundColor: colors.primary },
-  btnConfirmText: { color: colors.card, fontWeight: "700", textAlign: "center" },
-  btnDisabled: { opacity: 0.5 },
+  overlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing.xl,
+  },
   card: {
+    width: "100%",
     backgroundColor: colors.card,
     borderRadius: radius.lg,
-    marginHorizontal: 24,
     padding: spacing.xl,
+    gap: spacing.lg,
+    ...shadow.md,
+  },
+  modalTitle: {
+    ...type.title,
+    color: colors.text,
   },
   input: {
-    backgroundColor: colors.mutedSoft,
-    borderRadius: radius.sm,
+    ...type.body,
     color: colors.text,
-    fontSize: 16,
-    marginTop: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.mutedSoft,
   },
-  overlay: {
-    alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.4)",
+  actions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  btn: {
     flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radius.sm,
+    alignItems: "center",
     justifyContent: "center",
   },
-  title: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  btnCancel: {
+    backgroundColor: colors.mutedSoft,
+  },
+  btnConfirm: {
+    backgroundColor: colors.primary,
+  },
+  btnDisabled: {
+    opacity: 0.5,
+  },
+  btnCancelText: {
+    ...type.label,
+    color: colors.muted,
+  },
+  btnConfirmText: {
+    ...type.label,
+    color: colors.textOnPrimary,
+  },
 });

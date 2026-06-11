@@ -10,6 +10,7 @@ interface AuthState {
   user: User | null;
   isGuest: boolean;
   hasHydrated: boolean;
+  postSignOutScreen: "SignUp" | null;
 
   initialize: () => void;
   signUp: (email: string, password: string) => Promise<{ error: Error | null; needsConfirmation: boolean }>;
@@ -18,6 +19,7 @@ interface AuthState {
   continueAsGuest: () => void;
   signOut: () => Promise<void>;
   resendConfirmation: (email: string) => Promise<{ error: Error | null }>;
+  setPostSignOutScreen: (screen: "SignUp" | null) => void;
 }
 
 export const useAuthStore = create<AuthState>()((set) => ({
@@ -25,6 +27,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
   isGuest: false,
   hasHydrated: false,
+  postSignOutScreen: null,
 
   initialize: () => {
     // Load any persisted session once at app start, then subscribe to changes.
@@ -121,4 +124,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
     await supabase.auth.signOut();
     set({ session: null, user: null, isGuest: false });
   },
+
+  setPostSignOutScreen: (screen) => set({ postSignOutScreen: screen }),
 }));
