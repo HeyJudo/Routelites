@@ -63,7 +63,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   signInWithGoogle: async () => {
     try {
-      const redirectTo = Linking.createURL("auth-callback");
+      // Use the native scheme directly — more reliable on Android than exp://
+      const redirectTo = "routelite://auth-callback";
+      console.log("[OAuth] redirectTo:", redirectTo);
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -77,10 +79,16 @@ export const useAuthStore = create<AuthState>()((set) => ({
         return { error: (oauthError as Error | null) ?? new Error("No OAuth URL returned") };
       }
 
-      const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+      console.log("[OAuth] Opening browser...");
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.url,
+        redirectTo
+      );
+      console.log("[OAuth] Browser result:", result.type);
 
       if (result.type === "success") {
         const url = result.url;
+        console.log("[OAuth] Redirect URL:", url);
         const parsedUrl = new URL(url);
 
         // PKCE flow: Supabase returns ?code= in the redirect URL
