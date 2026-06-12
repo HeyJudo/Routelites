@@ -27,6 +27,7 @@ class PlaceInfo(BaseModel):
 class OptimizeRequest(BaseModel):
     store: StoreLocation
     stops: list[StopLocation] = Field(min_length=1)
+    mode: Literal["distance", "time"] = "distance"
 
 
 class RoutePathPoint(BaseModel):
@@ -39,6 +40,8 @@ class RouteLegResponse(BaseModel):
     target: str = Field(serialization_alias="to")
     distance_m: int
     path: list[RoutePathPoint]
+    time_min: float | None = None
+    congestion: Literal["low", "moderate", "heavy"] | None = None
 
 
 class RouteResponse(BaseModel):
@@ -50,6 +53,7 @@ class RouteResponse(BaseModel):
 class SavingsResponse(BaseModel):
     distance_m: int
     percentage: float
+    time_min: float | None = None
 
 
 class MetadataResponse(BaseModel):
@@ -62,6 +66,11 @@ class MetadataResponse(BaseModel):
     batches_used: int
     exact_global_optimum: bool
     computation_time_ms: int
+    objective: Literal["distance", "time"] = "distance"
+    traffic_source: Literal["none", "live", "mock"] = "none"
+    optimized_time_min: float | None = None
+    naive_time_min: float | None = None
+    traffic_as_of: str | None = None
 
 
 class OptimizeResponse(BaseModel):
