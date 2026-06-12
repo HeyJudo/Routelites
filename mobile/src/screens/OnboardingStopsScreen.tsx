@@ -6,6 +6,8 @@ import { FadeSlideView } from "../components/FadeSlideView";
 import { OnboardingHeader } from "../components/OnboardingHeader";
 import { OnboardingIllustration } from "../components/OnboardingIllustration";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useAuthStore } from "../state/authStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
@@ -21,13 +23,23 @@ type OnboardingStopsScreenProps = NativeStackScreenProps<
  */
 export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+  const isGuest = useAuthStore((s) => s.isGuest);
+
+  const finishOnboarding = () => {
+    if (!isGuest) {
+      updateProfile({ onboarded_at: new Date().toISOString() }).catch(() => {});
+    }
+  };
 
   const handleStartPlanning = () => {
+    finishOnboarding();
     navigation.replace("MainTabs");
   };
 
   const handleLoadDemo = () => {
     loadDemoRoute();
+    finishOnboarding();
     navigation.replace("MainTabs");
   };
 
@@ -41,7 +53,7 @@ export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps
 
       <View style={styles.content}>
         <FadeSlideView delay={100}>
-          <Text style={styles.stepLabel}>STEP 2 OF 2</Text>
+          <Text style={styles.stepLabel}>STEP 4 OF 4</Text>
           <Text style={styles.title}>Add your delivery stops</Text>
           <Text style={styles.subtitle}>
             You're all set. Here's how to add stops to your route.

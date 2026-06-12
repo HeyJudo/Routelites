@@ -1,5 +1,7 @@
-import { useCallback } from "react";
+import { Eye, EyeOff } from "lucide-react-native";
+import { useCallback, useState } from "react";
 import {
+  Pressable,
   StyleSheet,
   Text,
   TextInput,
@@ -18,11 +20,14 @@ import { colors, font, motion, radius, spacing, type } from "../theme";
 type AuthInputProps = TextInputProps & {
   label: string;
   disabled?: boolean;
+  /** When true, renders an eye-toggle to show/hide the value. */
+  secureToggle?: boolean;
 };
 
 const AnimatedView = Animated.createAnimatedComponent(View);
 
-export function AuthInput({ label, disabled, style, ...rest }: AuthInputProps) {
+export function AuthInput({ label, disabled, secureToggle, secureTextEntry, style, ...rest }: AuthInputProps) {
+  const [visible, setVisible] = useState(false);
   const focused = useSharedValue(0);
 
   const handleFocus = useCallback(() => {
@@ -41,6 +46,8 @@ export function AuthInput({ label, disabled, style, ...rest }: AuthInputProps) {
     ),
   }));
 
+  const isSecure = secureToggle ? !visible : secureTextEntry;
+
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.label}>{label}</Text>
@@ -50,15 +57,39 @@ export function AuthInput({ label, disabled, style, ...rest }: AuthInputProps) {
           onBlur={handleBlur}
           onFocus={handleFocus}
           placeholderTextColor={colors.muted}
-          style={[styles.input, style]}
+          secureTextEntry={isSecure}
+          style={[styles.input, secureToggle && styles.inputWithToggle, style]}
           {...rest}
         />
+        {secureToggle ? (
+          <Pressable
+            accessibilityLabel={visible ? "Hide password" : "Show password"}
+            hitSlop={8}
+            onPress={() => setVisible((v) => !v)}
+            style={styles.eyeToggle}
+          >
+            {visible ? (
+              <EyeOff color={colors.muted} size={18} />
+            ) : (
+              <Eye color={colors.muted} size={18} />
+            )}
+          </Pressable>
+        ) : null}
       </AnimatedView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  eyeToggle: {
+    alignItems: "center",
+    bottom: 0,
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    position: "absolute",
+    right: 0,
+    top: 0,
+  },
   fieldGroup: {
     gap: spacing.xs,
   },
@@ -77,6 +108,9 @@ const styles = StyleSheet.create({
   },
   inputDisabled: {
     opacity: 0.6,
+  },
+  inputWithToggle: {
+    paddingRight: 48, // leave room for eye toggle
   },
   label: {
     ...type.label,

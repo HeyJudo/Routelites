@@ -54,7 +54,7 @@ export function WelcomeScreen({ navigation }: WelcomeScreenProps) {
       <FadeSlideView delay={400} style={styles.footer}>
         <PrimaryButton
           icon={<ArrowRight color={colors.card} size={20} />}
-          onPress={() => navigation.navigate("SetStore")}
+          onPress={() => navigation.navigate("PersonalizeProfile")}
         >
           Get started
         </PrimaryButton>
