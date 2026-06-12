@@ -37,12 +37,32 @@ export const useAuthStore = create<AuthState>()((set) => ({
         user: session?.user ?? null,
         hasHydrated: true,
       });
+      // Lazy-import to avoid circular dependency at module load time
+      if (session) {
+        import("./profileStore").then(({ useProfileStore }) => {
+          useProfileStore.getState().loadProfile();
+        });
+      } else {
+        // Mark profile as loaded (no session = guest or signed out)
+        import("./profileStore").then(({ useProfileStore }) => {
+          useProfileStore.getState().clearProfile();
+          useProfileStore.setState({ hasLoaded: true });
+        });
+      }
     });
 
     supabase.auth.onAuthStateChange((_event, session) => {
       set({
         session,
         user: session?.user ?? null,
+      });
+      import("./profileStore").then(({ useProfileStore }) => {
+        if (session) {
+          useProfileStore.getState().loadProfile();
+        } else {
+          useProfileStore.getState().clearProfile();
+          useProfileStore.setState({ hasLoaded: true });
+        }
       });
     });
   },
@@ -63,8 +83,10 @@ export const useAuthStore = create<AuthState>()((set) => ({
 
   signInWithGoogle: async () => {
     try {
-      // Use the native scheme directly — more reliable on Android than exp://
-      const redirectTo = "routelite://auth-callback";
+      // Derive the redirect at runtime so it works in both Expo Go
+      // (exp://host:port/--/auth-callback) and standalone builds
+      // (routelite://auth-callback). Must match the Supabase Redirect URL allowlist.
+      const redirectTo = Linking.createURL("auth-callback");
       console.log("[OAuth] redirectTo:", redirectTo);
 
       const { data, error: oauthError } = await supabase.auth.signInWithOAuth({

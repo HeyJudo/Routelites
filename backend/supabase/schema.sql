@@ -237,6 +237,16 @@ create policy "delivery_stops: delete own"
 
 
 -- =============================================================================
+-- SECTION 7b: PROFILES — idempotent column additions (onboarding v2)
+-- =============================================================================
+
+alter table if exists public.profiles add column if not exists store_name          text;
+alter table if exists public.profiles add column if not exists vehicle_type        text;   -- 'motorcycle' | 'car' | 'bicycle'
+alter table if exists public.profiles add column if not exists typical_daily_stops text;   -- '5-10' | '10-20' | '20+'
+alter table if exists public.profiles add column if not exists onboarded_at        timestamptz;
+
+
+-- =============================================================================
 -- SECTION 8: TRIGGER — auto-create profile on new user signup
 -- =============================================================================
 

@@ -13,6 +13,8 @@ import {
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { demoStore } from "../data/demoRoute";
+import { useAuthStore } from "../state/authStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
@@ -27,6 +29,8 @@ type SetStoreScreenProps = NativeStackScreenProps<RootStackParamList, "SetStore"
 export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
   const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+  const isGuest = useAuthStore((s) => s.isGuest);
   const [showSearch, setShowSearch] = useState(false);
   const [selectedStore, setSelectedStore] = useState(storeLocation ?? demoStore);
   const [validationError, setValidationError] = useState("");
@@ -48,6 +52,12 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
 
   const handleContinue = () => {
     setStoreLocation(selectedStore);
+    // Also persist to Supabase profile for authenticated users
+    if (!isGuest) {
+      updateProfile({ default_store: selectedStore }).catch(() => {
+        // non-blocking — local draft store is the source of truth for the run
+      });
+    }
     navigation.navigate("OnboardingStops");
   };
 
@@ -66,7 +76,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
 
       <View style={styles.content}>
         <FadeSlideView delay={100}>
-          <Text style={styles.stepLabel}>STEP 1 OF 2</Text>
+          <Text style={styles.stepLabel}>STEP 3 OF 4</Text>
           <Text style={styles.title}>Where do your deliveries start?</Text>
           <Text style={styles.subtitle}>
             Set your store, warehouse, or pickup location. This is where your

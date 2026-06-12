@@ -26,9 +26,11 @@ import type { RootStackParamList } from "../../navigation/types";
 import { useAuthStore } from "../../state/authStore";
 import { colors, font, motion, radius, spacing, type } from "../../theme";
 
-type SignUpScreenProps = NativeStackScreenProps<RootStackParamList, "SignUp">;
+type AuthScreenProps = NativeStackScreenProps<RootStackParamList, "Auth">;
 
-export function SignUpScreen({ navigation }: SignUpScreenProps) {
+/** Combined sign-in / sign-up screen. Google + guest are the primary paths. */
+export function AuthScreen(_props: AuthScreenProps) {
+  const signIn = useAuthStore((s) => s.signIn);
   const signUp = useAuthStore((s) => s.signUp);
   const signInWithGoogle = useAuthStore((s) => s.signInWithGoogle);
   const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
@@ -36,10 +38,12 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [confirmed, setConfirmed] = useState(false);
+  // When Supabase says the email is new and user confirms account creation
+  const [offerCreate, setOfferCreate] = useState(false);
+  // After signUp that needs email confirmation
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const [resendStatus, setResendStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [resendError, setResendError] = useState("");
 
@@ -64,33 +68,52 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
     transform: [{ translateX: shakeX.value }],
   }));
 
-  const handleSignUp = async () => {
+  const handleContinue = async () => {
     setError("");
+    setOfferCreate(false);
 
-    if (!email.trim() || !password || !confirmPassword) {
-      setError("Please fill in all fields.");
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
       return;
     }
     if (password.length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
 
     setLoading(true);
-    const { error: authError, needsConfirmation } = await signUp(email.trim(), password);
+    const { error: signInErr } = await signIn(email.trim(), password);
     setLoading(false);
 
-    if (authError) {
-      setError(authError.message);
-    } else if (needsConfirmation) {
-      setConfirmed(true);
+    if (!signInErr) return; // success — navigator handles redirect
+
+    const msg = signInErr.message ?? "";
+    const isInvalidCreds = msg.toLowerCase().includes("invalid login credentials") ||
+      msg.toLowerCase().includes("invalid") ||
+      msg.toLowerCase().includes("credentials");
+
+    if (isInvalidCreds) {
+      // Surface inline account-creation offer instead of hard error
+      setOfferCreate(true);
+      setError("No account found for that email. Create one?");
+    } else {
+      setError(msg || "Something went wrong. Please try again.");
     }
-    // If no error and no needsConfirmation, session was created immediately —
-    // onAuthStateChange fires and AppNavigator handles the redirect automatically.
+  };
+
+  const handleCreateAccount = async () => {
+    setError("");
+    setOfferCreate(false);
+    setLoading(true);
+    const { error: signUpErr, needsConfirmation: nc } = await signUp(email.trim(), password);
+    setLoading(false);
+
+    if (signUpErr) {
+      setError(signUpErr.message || "Could not create account.");
+    } else if (nc) {
+      setNeedsConfirmation(true);
+    }
+    // If no error and session created immediately — navigator handles it
   };
 
   const handleGoogle = async () => {
@@ -98,9 +121,7 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
     setLoading(true);
     const { error: authError } = await signInWithGoogle();
     setLoading(false);
-    if (authError) {
-      setError(authError.message);
-    }
+    if (authError) setError(authError.message);
   };
 
   const handleGuest = () => {
@@ -119,54 +140,45 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
     }
   };
 
-  if (confirmed) {
+  // --- Confirmation waiting state ---
+  if (needsConfirmation) {
     return (
       <SafeAreaView edges={["top", "bottom"]} style={styles.safeArea}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           <View style={styles.logoRow}>
             <LogoMark showWordmark size="sm" />
           </View>
-
-          <View style={styles.successContainer}>
-            <View style={styles.header}>
-              <Text style={styles.heading}>Account created</Text>
-              <Text style={styles.subheading}>
-                We sent a confirmation link to{" "}
-                <Text style={styles.emailHighlight}>{email.trim()}</Text>
-                {". Open it, then come back and log in."}
+          <View style={styles.header}>
+            <Text style={styles.heading}>Check your email</Text>
+            <Text style={styles.subheading}>
+              We sent a confirmation link to{" "}
+              <Text style={styles.emailHighlight}>{email.trim()}</Text>
+              {". Open it, then come back to sign in."}
+            </Text>
+          </View>
+          <View style={styles.actions}>
+            <PrimaryButton onPress={() => setNeedsConfirmation(false)}>
+              Back to sign in
+            </PrimaryButton>
+            <Pressable
+              disabled={resendStatus === "sending"}
+              hitSlop={8}
+              onPress={handleResend}
+            >
+              <Text style={[styles.resendText, resendStatus === "sending" && styles.resendTextDim]}>
+                {resendStatus === "sending" ? "Sending…" : "Resend confirmation email"}
               </Text>
-            </View>
-
-            <View style={styles.actions}>
-              <PrimaryButton onPress={() => navigation.navigate("SignIn")}>
-                Go to log in
-              </PrimaryButton>
-
-              <Pressable
-                disabled={resendStatus === "sending"}
-                hitSlop={8}
-                onPress={handleResend}
-              >
-                <Text style={[styles.resendText, resendStatus === "sending" && styles.resendTextDim]}>
-                  {resendStatus === "sending" ? "Sending…" : "Resend confirmation email"}
-                </Text>
-              </Pressable>
-
-              {resendStatus === "sent" ? (
-                <View style={styles.confirmationCard}>
-                  <Text style={styles.confirmationText}>Sent! Check your inbox.</Text>
-                </View>
-              ) : null}
-
-              {resendStatus === "error" && resendError ? (
-                <View style={styles.errorCard}>
-                  <Text style={styles.errorText}>{resendError}</Text>
-                </View>
-              ) : null}
-            </View>
+            </Pressable>
+            {resendStatus === "sent" ? (
+              <View style={styles.confirmationCard}>
+                <Text style={styles.confirmationText}>Sent! Check your inbox.</Text>
+              </View>
+            ) : null}
+            {resendStatus === "error" && resendError ? (
+              <View style={styles.errorCard}>
+                <Text style={styles.errorText}>{resendError}</Text>
+              </View>
+            ) : null}
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -193,24 +205,46 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
 
           <Animated.View entering={FadeInDown.duration(motion.base).delay(60)} style={styles.header}>
             <Text style={styles.heading}>
-              Create your{" "}
-              <Text style={styles.headingAccent}>account</Text>
+              Welcome to{" "}
+              <Text style={styles.headingAccent}>RouteLite</Text>
             </Text>
-            <Text style={styles.subheading}>Start optimizing your delivery routes</Text>
+            <Text style={styles.subheading}>Sign in or create your account below</Text>
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.duration(motion.base).delay(120)} style={styles.form}>
+          {/* Primary social actions */}
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(100)} style={styles.socialActions}>
+            <PrimaryButton
+              disabled={loading}
+              icon={<Text style={styles.googleG}>G</Text>}
+              onPress={handleGoogle}
+              variant="outline"
+            >
+              Continue with Google
+            </PrimaryButton>
+            <Pressable disabled={loading} hitSlop={8} onPress={handleGuest}>
+              <Text style={styles.guestText}>Continue as guest</Text>
+            </Pressable>
+          </Animated.View>
+
+          {/* Divider */}
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(140)} style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or sign in with email</Text>
+            <View style={styles.dividerLine} />
+          </Animated.View>
+
+          {/* Email + password */}
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(180)} style={styles.form}>
             <AuthInput
               autoCapitalize="none"
               autoCorrect={false}
               disabled={loading}
               keyboardType="email-address"
               label="Email"
-              onChangeText={setEmail}
+              onChangeText={(v) => { setEmail(v); setOfferCreate(false); }}
               placeholder="you@example.com"
               value={email}
             />
-
             <AuthInput
               autoCapitalize="none"
               autoCorrect={false}
@@ -218,18 +252,8 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
               label="Password"
               onChangeText={setPassword}
               placeholder="At least 6 characters"
-              secureTextEntry
+              secureToggle
               value={password}
-            />
-
-            <AuthInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              disabled={loading}
-              label="Confirm password"
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              value={confirmPassword}
             />
 
             {error ? (
@@ -242,42 +266,23 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
             ) : null}
           </Animated.View>
 
-          <Animated.View entering={FadeInDown.duration(motion.base).delay(180)} style={styles.actions}>
-            <PrimaryButton loading={loading} onPress={handleSignUp}>
-              Create account
-            </PrimaryButton>
-
-            <PrimaryButton
-              disabled={loading}
-              icon={<Text style={styles.googleG}>G</Text>}
-              onPress={handleGoogle}
-              variant="outline"
-            >
-              Continue with Google
-            </PrimaryButton>
-
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <Pressable disabled={loading} hitSlop={8} onPress={handleGuest}>
-              <Text style={styles.guestText}>Continue as guest</Text>
-            </Pressable>
+          {/* CTA row */}
+          <Animated.View entering={FadeInDown.duration(motion.base).delay(220)} style={styles.actions}>
+            {offerCreate ? (
+              <>
+                <PrimaryButton loading={loading} onPress={handleCreateAccount}>
+                  Create account
+                </PrimaryButton>
+                <Pressable hitSlop={8} onPress={() => { setOfferCreate(false); setError(""); }}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </Pressable>
+              </>
+            ) : (
+              <PrimaryButton loading={loading} onPress={handleContinue}>
+                Continue
+              </PrimaryButton>
+            )}
           </Animated.View>
-
-          <View style={styles.footer}>
-            <Pressable
-              hitSlop={8}
-              onPress={() => navigation.navigate("SignIn")}
-            >
-              <Text style={styles.footerText}>
-                Already have an account?{" "}
-                <Text style={styles.footerLink}>Log in</Text>
-              </Text>
-            </Pressable>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -287,7 +292,7 @@ export function SignUpScreen({ navigation }: SignUpScreenProps) {
 const styles = StyleSheet.create({
   actions: {
     gap: spacing.md,
-    paddingTop: spacing.xl,
+    paddingTop: spacing.lg,
   },
   blob: {
     backgroundColor: colors.primarySoft,
@@ -299,6 +304,11 @@ const styles = StyleSheet.create({
     top: -60,
     width: 280,
     zIndex: -1,
+  },
+  cancelText: {
+    ...type.label,
+    color: colors.muted,
+    textAlign: "center",
   },
   confirmationCard: {
     backgroundColor: colors.primarySoft,
@@ -318,6 +328,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: spacing.md,
+    paddingVertical: spacing.lg,
   },
   dividerText: {
     ...type.caption,
@@ -335,18 +346,6 @@ const styles = StyleSheet.create({
   errorText: {
     ...type.label,
     color: colors.danger,
-  },
-  footer: {
-    alignItems: "center",
-    paddingTop: spacing.xl,
-  },
-  footerLink: {
-    color: colors.primary,
-    fontFamily: font.bold,
-  },
-  footerText: {
-    ...type.body,
-    color: colors.muted,
   },
   form: {
     gap: spacing.lg,
@@ -396,11 +395,11 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 24,
   },
+  socialActions: {
+    gap: spacing.md,
+  },
   subheading: {
     ...type.body,
     color: colors.muted,
-  },
-  successContainer: {
-    flex: 1,
   },
 });
