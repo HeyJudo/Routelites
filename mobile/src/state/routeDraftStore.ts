@@ -9,6 +9,7 @@ interface RouteDraftState {
   storeLocation: StoreLocation | null;
   stops: Stop[];
   hasHydrated: boolean;
+  optimizeMode: "distance" | "time";
   setStoreLocation: (store: StoreLocation) => void;
   clearStoreLocation: () => void;
   addStop: (stop: Stop) => void;
@@ -17,6 +18,7 @@ interface RouteDraftState {
   clearStops: () => void;
   loadDemoRoute: () => void;
   setHasHydrated: (v: boolean) => void;
+  setOptimizeMode: (m: "distance" | "time") => void;
 }
 
 export const useRouteDraftStore = create<RouteDraftState>()(
@@ -25,6 +27,7 @@ export const useRouteDraftStore = create<RouteDraftState>()(
       storeLocation: null,
       stops: [],
       hasHydrated: false,
+      optimizeMode: "distance" as const,
 
       setStoreLocation: (store) => set({ storeLocation: store }),
       clearStoreLocation: () => set({ storeLocation: null }),
@@ -39,16 +42,17 @@ export const useRouteDraftStore = create<RouteDraftState>()(
           next.splice(to, 0, item);
           return { stops: next };
         }),
-      clearStops: () => set({ stops: [] }),
+      clearStops: () => set({ stops: [], optimizeMode: "distance" }),
      // loadDemoRoute: () => set({ storeLocation: demoStore, stops: demoStops }),
      loadDemoRoute: () => {
         // Clear any existing cached layout first
-        set({ storeLocation: null, stops: [] });
-  
+        set({ storeLocation: null, stops: [], optimizeMode: "distance" });
+
           // Set the fresh data directly from your updated demoRoute file
           set({ storeLocation: demoStore, stops: demoStops });
         },
       setHasHydrated: (v) => set({ hasHydrated: v }),
+      setOptimizeMode: (m) => set({ optimizeMode: m }),
     }),
     {
       name: "routelite-draft",

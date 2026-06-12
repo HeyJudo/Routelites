@@ -38,6 +38,7 @@ export function LoadingScreen({ navigation }: LoadingScreenProps) {
 
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
   const stops = useRouteDraftStore((s) => s.stops);
+  const optimizeMode = useRouteDraftStore((s) => s.optimizeMode);
 
   // Ring sweep animation
   const rotation = useSharedValue(0);
@@ -107,6 +108,7 @@ export function LoadingScreen({ navigation }: LoadingScreenProps) {
             label: s.label || "Stop",
             address: s.address ?? "",
           })),
+          mode: optimizeMode,
         };
 
         console.log("Sending optimize request to backend...");
@@ -153,7 +155,7 @@ export function LoadingScreen({ navigation }: LoadingScreenProps) {
       // kicks off a fresh effect run.
       cancelled = true;
     };
-  }, [navigation, storeLocation, stops, attempt]);
+  }, [navigation, storeLocation, stops, attempt, optimizeMode]);
 
   const handleRetry = () => {
     setError(null);

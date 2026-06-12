@@ -2,7 +2,7 @@ import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Layers, Plus, Route, Search, Store, Trash2 } from "lucide-react-native";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Pressable,
   StyleSheet,
@@ -13,6 +13,9 @@ import Animated, {
   FadeInDown,
   FadeOutLeft,
   LinearTransition,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
 } from "react-native-reanimated";
 import type BottomSheet from "@gorhom/bottom-sheet";
 
@@ -52,6 +55,8 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const addStop = useRouteDraftStore((s) => s.addStop);
   const removeStop = useRouteDraftStore((s) => s.removeStop);
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+  const optimizeMode = useRouteDraftStore((s) => s.optimizeMode);
+  const setOptimizeMode = useRouteDraftStore((s) => s.setOptimizeMode);
   const activeStore = storeLocation ?? demoStore;
   const [showStopList, setShowStopList] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
@@ -94,6 +99,30 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   };
 
   const isLargeRoute = stops.length > 10;
+
+  // Segmented control for optimize mode
+  const [modeSegmentWidth, setModeSegmentWidth] = useState(0);
+  const modeThumbX = useSharedValue(0);
+  const modeThumbStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: modeThumbX.value }],
+  }));
+
+  // Force distance mode for large routes
+  useEffect(() => {
+    if (isLargeRoute && optimizeMode === "time") {
+      setOptimizeMode("distance");
+    }
+  }, [isLargeRoute, optimizeMode, setOptimizeMode]);
+
+  // Animate thumb to the selected mode segment
+  useEffect(() => {
+    if (modeSegmentWidth > 0) {
+      modeThumbX.value = withSpring(optimizeMode === "distance" ? 0 : modeSegmentWidth, {
+        damping: 20,
+        stiffness: 200,
+      });
+    }
+  }, [optimizeMode, modeSegmentWidth]);
 
   return (
     <View style={styles.container}>
@@ -217,6 +246,59 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
               ) : null}
             </View>
           ) : null}
+
+          {/* Optimize mode selector */}
+          <View>
+            <View
+              style={styles.modeSegmented}
+              onLayout={(e) => setModeSegmentWidth(e.nativeEvent.layout.width / 2)}
+            >
+              {modeSegmentWidth > 0 && (
+                <Animated.View
+                  style={[
+                    styles.modeSegmentThumb,
+                    { width: modeSegmentWidth },
+                    modeThumbStyle,
+                  ]}
+                />
+              )}
+              <Pressable
+                style={styles.modeSegment}
+                onPress={() => setOptimizeMode("distance")}
+              >
+                <Text
+                  style={[
+                    styles.modeSegmentText,
+                    optimizeMode === "distance"
+                      ? styles.modeSegmentTextActive
+                      : styles.modeSegmentTextInactive,
+                  ]}
+                >
+                  Shortest
+                </Text>
+              </Pressable>
+              <Pressable
+                style={styles.modeSegment}
+                disabled={isLargeRoute}
+                onPress={() => !isLargeRoute && setOptimizeMode("time")}
+              >
+                <Text
+                  style={[
+                    styles.modeSegmentText,
+                    optimizeMode === "time" && !isLargeRoute
+                      ? styles.modeSegmentTextActive
+                      : styles.modeSegmentTextInactive,
+                    isLargeRoute && styles.modeSegmentTextDisabled,
+                  ]}
+                >
+                  Fastest in traffic
+                </Text>
+                {isLargeRoute ? (
+                  <Text style={styles.modeSegmentCap}>Up to 10 stops</Text>
+                ) : null}
+              </Pressable>
+            </View>
+          </View>
 
           {/* Optimize CTA — the only solid-primary button in the sheet */}
           <PrimaryButton
@@ -396,6 +478,49 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.md,
     padding: 14,
+  },
+  modeSegmented: {
+    flexDirection: "row",
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.sm,
+    padding: 3,
+    position: "relative",
+    overflow: "hidden",
+  },
+  modeSegmentThumb: {
+    position: "absolute",
+    top: 3,
+    bottom: 3,
+    left: 3,
+    backgroundColor: colors.card,
+    borderRadius: radius.sm - 1,
+  },
+  modeSegment: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: spacing.sm,
+    zIndex: 1,
+  },
+  modeSegmentText: {
+    ...type.label,
+    textAlign: "center",
+  },
+  modeSegmentTextActive: {
+    color: colors.text,
+  },
+  modeSegmentTextInactive: {
+    color: colors.muted,
+  },
+  modeSegmentTextDisabled: {
+    color: colors.muted,
+    opacity: 0.5,
+  },
+  modeSegmentCap: {
+    ...type.caption,
+    color: colors.muted,
+    opacity: 0.6,
+    marginTop: 1,
   },
   storeCopy: {
     flex: 1,

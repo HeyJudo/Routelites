@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Literal
 
 from app.algorithms.dijkstra import reconstruct_path, run_dijkstra
 from app.algorithms.tsp_branch_bound import TspResult
 from app.graph import RoadGraph
+
+if TYPE_CHECKING:
+    from app.services.traffic import TimeMatrixResult
 
 
 @dataclass(frozen=True)
@@ -20,6 +26,8 @@ class RouteLeg:
     target: str
     distance_m: int
     path: list[str]
+    time_min: float | None = None
+    congestion: Literal["low", "moderate", "heavy"] | None = None
 
 
 @dataclass(frozen=True)
@@ -151,5 +159,66 @@ def compute_route_from_tsp_result(
     return RouteResult(
         order=route_order,
         total_distance_m=tsp_result.total_distance,
+        legs=legs,
+    )
+
+
+def compute_route_from_tsp_result_time(
+    matrix_result: DistanceMatrixResult,
+    tsp_result: TspResult,
+    time_result: TimeMatrixResult,
+) -> RouteResult:
+    """
+    Assemble a RouteResult whose visit ORDER comes from a time-based TSP solve,
+    but whose distance_m values (per-leg and total) come from the distance matrix.
+
+    This is used in "time" mode where tsp_result.total_distance is in minutes —
+    we must never assign that value to total_distance_m (which is metres).
+    Polyline geometry (leg.path) also comes from the Dijkstra distance matrix.
+
+    Per-leg time_min and congestion are populated from time_result.
+    """
+    assert matrix_result.node_order == time_result.node_order, (
+        "Distance and time matrix node orders must match"
+    )
+
+    route_order = [
+        matrix_result.node_order[node_index]
+        for node_index in tsp_result.order
+    ]
+    legs: list[RouteLeg] = []
+    total_distance = 0
+
+    for source, target in zip(route_order[:-1], route_order[1:], strict=True):
+        source_index = matrix_result.node_order.index(source)
+        target_index = matrix_result.node_order.index(target)
+        distance = matrix_result.distances[source_index][target_index]
+        total_distance += distance
+
+        leg_time_min = float(time_result.times_min[source_index][target_index])
+        delay = time_result.delays_min[source_index][target_index]
+        free_flow = leg_time_min - delay
+        ratio = leg_time_min / free_flow if free_flow > 0 else 1.0
+        if ratio < 1.25:
+            congestion: Literal["low", "moderate", "heavy"] = "low"
+        elif ratio < 1.6:
+            congestion = "moderate"
+        else:
+            congestion = "heavy"
+
+        legs.append(
+            RouteLeg(
+                source=source,
+                target=target,
+                distance_m=distance,
+                path=matrix_result.paths[(source, target)],
+                time_min=leg_time_min,
+                congestion=congestion,
+            )
+        )
+
+    return RouteResult(
+        order=route_order,
+        total_distance_m=total_distance,
         legs=legs,
     )

@@ -17,6 +17,7 @@ export interface OptimizeRequest {
     label: string;
     address?: string;
   }>;
+  mode?: "distance" | "time";
 }
 
 export interface OptimizeResponse {

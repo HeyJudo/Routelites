@@ -53,6 +53,16 @@ function easeInOut(t: number): number {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
+/** Returns a stroke color for a leg based on its congestion level (time mode only). */
+function congestionColor(congestion: RouteLeg["congestion"]): string {
+  switch (congestion) {
+    case "low":      return "#22c55e"; // green
+    case "moderate": return "#f59e0b"; // amber
+    case "heavy":    return "#ef4444"; // red
+    default:         return "#22c55e"; // fallback neutral green
+  }
+}
+
 // ── AnimatedNumber ─────────────────────────────────────────────────────────────
 // Standard Reanimated number-ticker using Animated.createAnimatedComponent(TextInput).
 // TextInput is used because its `text` prop is animatable on the UI thread via
@@ -229,6 +239,33 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
   const naiveKm     = response.naive_route.total_distance_m / 1000;
   const savingsPct  = response.savings.percentage;
 
+  // Traffic / time mode
+  const objective = (response.metadata.objective ?? "distance") as "distance" | "time";
+  const isTimeMode = objective === "time";
+  const optimizedMin = response.metadata.optimized_time_min ?? 0;
+  const naiveMin = response.metadata.naive_time_min ?? 0;
+  const trafficSource = response.metadata.traffic_source ?? "none";
+
+  // Time-mode derived traffic info
+  const savedTimeMin = isTimeMode ? Math.round(response.savings.time_min ?? 0) : 0;
+
+  const trafficAsOfLabel: string | null = (() => {
+    if (!isTimeMode) return null;
+    const raw = response.metadata.traffic_as_of;
+    if (!raw) return null;
+    try {
+      const d = new Date(raw);
+      if (isNaN(d.getTime())) return null;
+      return "Traffic as of " + d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    } catch {
+      return null;
+    }
+  })();
+
+  const heavyLegs = isTimeMode
+    ? response.optimized_route.legs.filter((l: RouteLeg) => l.congestion === "heavy").length
+    : 0;
+
   // ── Coords with draw-on applied ───────────────────────────────────────────
   function sliceCoords(coords: { latitude: number; longitude: number }[]) {
     if (coords.length === 0) return coords;
@@ -321,8 +358,13 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           />
         )}
 
-        {/* Optimized line — draw-on applies */}
-        {(mode === "optimized" || mode === "compare") && (
+        {/* Optimized line — draw-on applies.
+            Distance mode: single combined polyline (unchanged).
+            Time mode: per-leg polylines colored by congestion level.
+            The draw-on animation slices the flat combined coords to get a
+            total-progress cutoff; for per-leg rendering we compute how many
+            full legs fit inside that same progress and slice the remainder. */}
+        {(mode === "optimized" || mode === "compare") && !isTimeMode && (
           <Polyline
             coordinates={sliceCoords(optimizedCoords)}
             strokeColor={colors.primary}
@@ -330,6 +372,41 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
             zIndex={2}
           />
         )}
+
+        {(mode === "optimized" || mode === "compare") && isTimeMode && (() => {
+          // Build per-leg coord arrays
+          const legs = response.optimized_route.legs;
+          const legCoordArrays = legs.map((leg: RouteLeg) =>
+            leg.path.map((p) => ({ latitude: p.lat, longitude: p.lng }))
+          );
+          const totalPoints = optimizedCoords.length;
+          const drawnCount  = Math.max(1, Math.ceil(totalPoints * drawProgress));
+
+          // Walk legs accumulating points until we hit drawnCount
+          let remaining = drawnCount;
+          return legCoordArrays.map((coords: { latitude: number; longitude: number }[], i: number) => {
+            if (remaining <= 0) return null;
+            const leg = legs[i] as RouteLeg;
+            let visible: { latitude: number; longitude: number }[];
+            if (coords.length <= remaining) {
+              visible = coords;
+              remaining -= coords.length;
+            } else {
+              visible = coords.slice(0, remaining);
+              remaining = 0;
+            }
+            if (visible.length < 2) return null;
+            return (
+              <Polyline
+                key={`leg-${i}`}
+                coordinates={visible}
+                strokeColor={congestionColor(leg.congestion)}
+                strokeWidth={4}
+                zIndex={2}
+              />
+            );
+          });
+        })()}
 
         {/* Depot marker — stagger index 0 */}
         {storeLat != null && storeLng != null && (
@@ -405,6 +482,37 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
       >
         {/* Info button — right-aligned, opens algorithm details */}
         <View style={styles.statsHeaderRow}>
+          {isTimeMode && trafficSource !== "none" ? (
+            <View style={styles.trafficBadge}>
+              <Text style={styles.trafficBadgeText}>
+                {trafficSource === "live" ? "Live traffic" : "Simulated traffic"}
+              </Text>
+            </View>
+          ) : null}
+          {isTimeMode && trafficAsOfLabel ? (
+            <View style={styles.trafficAsOfBadge}>
+              <Text style={styles.trafficAsOfText}>{trafficAsOfLabel}</Text>
+            </View>
+          ) : null}
+          {isTimeMode ? (
+            <View
+              style={[
+                styles.congestionChip,
+                heavyLegs > 0 ? styles.congestionChipWarning : styles.congestionChipGood,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.congestionChipText,
+                  heavyLegs > 0 ? styles.congestionChipTextWarning : styles.congestionChipTextGood,
+                ]}
+              >
+                {heavyLegs > 0
+                  ? `Heavy traffic on ${heavyLegs} leg${heavyLegs !== 1 ? "s" : ""}`
+                  : "Light traffic"}
+              </Text>
+            </View>
+          ) : null}
           <Pressable
             onPress={() => setShowDetails(true)}
             style={styles.infoButton}
@@ -424,15 +532,20 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
               suffix="%"
               style={[type.title, { color: colors.delivered }]}
             />
+            {isTimeMode && savedTimeMin > 0 && (
+              <Text style={[type.caption, { color: colors.delivered, marginTop: 1 }]}>
+                Saves {savedTimeMin} min
+              </Text>
+            )}
             <Text style={[type.caption, styles.statLabel]}>Saved</Text>
           </View>
 
           {/* Optimized */}
           <View style={[styles.statCard, styles.optimizedCard]}>
             <AnimatedNumber
-              target={optimizedKm}
-              decimals={2}
-              suffix=" km"
+              target={isTimeMode ? optimizedMin : optimizedKm}
+              decimals={isTimeMode ? 0 : 2}
+              suffix={isTimeMode ? " min" : " km"}
               style={[type.heading, { color: colors.text }]}
             />
             <Text style={[type.caption, styles.statLabel]}>Optimized</Text>
@@ -441,9 +554,9 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
           {/* Naive */}
           <View style={styles.statCard}>
             <AnimatedNumber
-              target={naiveKm}
-              decimals={2}
-              suffix=" km"
+              target={isTimeMode ? naiveMin : naiveKm}
+              decimals={isTimeMode ? 0 : 2}
+              suffix={isTimeMode ? " min" : " km"}
               style={[type.heading, { color: colors.text }]}
             />
             <Text style={[type.caption, styles.statLabel]}>Naive</Text>
@@ -519,7 +632,10 @@ export function ResultsScreen({ navigation, route }: ResultsScreenProps) {
         {/* Stop list header */}
         <View style={styles.stopListHeader}>
           <Text style={[type.label, { color: colors.muted }]}>
-            {stopCount} stop{stopCount !== 1 ? "s" : ""} · {totalKm} km total
+            {stopCount} stop{stopCount !== 1 ? "s" : ""} ·{" "}
+            {isTimeMode
+              ? `${Math.round(optimizedMin)} min total`
+              : `${totalKm} km total`}
           </Text>
         </View>
 
@@ -667,6 +783,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
     paddingBottom: spacing.xs,
+    gap: spacing.sm,
   },
   infoButton: {
     width: 40,
@@ -675,6 +792,46 @@ const styles = StyleSheet.create({
     backgroundColor: colors.mutedSoft,
     alignItems: "center",
     justifyContent: "center",
+  },
+  trafficBadge: {
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  trafficBadgeText: {
+    ...type.caption,
+    color: colors.primaryDark,
+  },
+  trafficAsOfBadge: {
+    backgroundColor: colors.mutedSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  trafficAsOfText: {
+    ...type.caption,
+    color: colors.muted,
+  },
+  congestionChip: {
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+  },
+  congestionChipWarning: {
+    backgroundColor: colors.warningSoft,
+  },
+  congestionChipGood: {
+    backgroundColor: colors.deliveredSoft,
+  },
+  congestionChipText: {
+    ...type.caption,
+  },
+  congestionChipTextWarning: {
+    color: colors.warning,
+  },
+  congestionChipTextGood: {
+    color: colors.delivered,
   },
 
   // Stats row: hero Saved card first, then Optimized, Naive
