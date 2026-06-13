@@ -43,6 +43,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ResumeRunBanner } from "../components/ResumeRunBanner";
 import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { useDeliveryRunStore } from "../state/deliveryRunStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, motion, radius, spacing, type } from "../theme";
 import type { OptimizeResponse, RouteLeg } from "../types/api";
@@ -115,6 +116,7 @@ const skeletonStyles = StyleSheet.create({
 export function SavedRoutesScreen({ navigation }: SavedRoutesScreenProps) {
   const rootNav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const profile = useProfileStore((s) => s.profile);
 
   const [routes, setRoutes] = useState<SavedRoute[]>([]);
   const [loading, setLoading] = useState(true);
@@ -273,6 +275,9 @@ export function SavedRoutesScreen({ navigation }: SavedRoutesScreenProps) {
         ]}
       >
         <Text style={styles.headerTitle}>My Routes</Text>
+        {profile?.storeName ? (
+          <Text style={styles.headerSubtitle}>{profile.storeName}</Text>
+        ) : null}
       </View>
 
       <ResumeRunBanner />
@@ -496,6 +501,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   headerTitle: { ...type.display, color: colors.text },
+  headerSubtitle: { ...type.body, color: colors.muted, marginTop: 2 },
   list: { gap: spacing.md, padding: spacing.lg },
   modalActions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   modalCard: {

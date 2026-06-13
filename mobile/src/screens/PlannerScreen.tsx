@@ -32,6 +32,7 @@ import { RouteMap, type RouteMapHandle } from "../components/RouteMap";
 import { StopListModal } from "../components/StopListModal";
 import { createMapStop, demoStore } from "../data/demoRoute";
 import { useRouteDraftStore } from "../state/routeDraftStore";
+import { useProfileStore } from "../state/profileStore";
 import { colors, radius, shadow, spacing, type } from "../theme";
 import type { MainTabParamList, RootStackParamList } from "../navigation/types";
 import { isDuplicateStop, isInsideNCR } from "../utils/validation";
@@ -57,7 +58,9 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const optimizeMode = useRouteDraftStore((s) => s.optimizeMode);
   const setOptimizeMode = useRouteDraftStore((s) => s.setOptimizeMode);
+  const storeName = useProfileStore((s) => s.profile?.storeName);
   const activeStore = storeLocation ?? demoStore;
+  const displayStoreName = storeName || activeStore.label;
   const [showStopList, setShowStopList] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [toastMsg, setToastMsg] = useState("");
@@ -126,8 +129,8 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
 
   return (
     <View style={styles.container}>
-      {/* AppHeader rendered above the sheet */}
-      <AppHeader />
+      {/* AppHeader rendered above the sheet — shows personalized greeting */}
+      <AppHeader showGreeting />
 
       {/* Resume banner — self-contained, renders null when no active run */}
       <ResumeRunBanner />
@@ -185,7 +188,7 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
               <Store color={colors.primaryDark} size={20} />
             </View>
             <View style={styles.storeCopy}>
-              <Text style={styles.cardTitle}>{activeStore.label}</Text>
+              <Text style={styles.cardTitle}>{displayStoreName}</Text>
               <Text style={styles.cardSubtitle}>{activeStore.address}</Text>
             </View>
           </Pressable>
@@ -235,15 +238,16 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
                   </Pressable>
                 </Animated.View>
               ))}
-              {stops.length > 4 ? (
-                <Animated.View layout={LinearTransition.springify()}>
-                  <Pressable onPress={() => setShowStopList(true)}>
-                    <Text style={styles.moreStopsText}>
-                      +{stops.length - 4} more stops — View all
-                    </Text>
-                  </Pressable>
-                </Animated.View>
-              ) : null}
+              {/* Reorder / view all link */}
+              <Animated.View layout={LinearTransition.springify()}>
+                <Pressable onPress={() => setShowStopList(true)} style={styles.viewAllRow}>
+                  <Text style={styles.moreStopsText}>
+                    {stops.length > 4
+                      ? `+${stops.length - 4} more · Tap to reorder`
+                      : "Tap to reorder stops"}
+                  </Text>
+                </Pressable>
+              </Animated.View>
             </View>
           ) : null}
 
@@ -384,8 +388,12 @@ const styles = StyleSheet.create({
   },
   moreStopsText: {
     ...type.label,
-    color: colors.muted,
-    paddingLeft: 38,
+    color: colors.primary,
+    textAlign: "center",
+  },
+  viewAllRow: {
+    alignItems: "center",
+    paddingVertical: spacing.xs,
   },
   peekBar: {
     alignItems: "center",
