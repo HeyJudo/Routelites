@@ -5,16 +5,19 @@ export interface OptimizeRequest {
   store: {
     lat: number;
     lng: number;
-    lon: number; //
+    lon: number;
     label: string;
+    address?: string;
   };
   stops: Array<{
     id: string;
     lat: number;
     lng: number;
-    lon: number; //
+    lon: number;
     label: string;
+    address?: string;
   }>;
+  mode?: "distance" | "time";
 }
 
 export interface OptimizeResponse {

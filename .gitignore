@@ -1,3 +1,9 @@
+# Claude Code / AI tool configs
+.claude/
+.agents/
+.kiro/
+skills-lock.json
+
 # OS/editor
 .DS_Store
 Thumbs.db
@@ -27,6 +33,9 @@ htmlcov/
 venv/
 env/
 
+# Backend cache (precomputed shortest paths)
+backend/cache/
+
 # Backend generated data
 backend/data/*.pkl
 backend/data/*.pickle
@@ -34,6 +43,7 @@ backend/data/*.gpkg
 backend/data/*.graphml
 backend/data/*.osm
 backend/data/*.osm.pbf
+backend/data/ncr_graph.json
 !backend/data/README.md
 !backend/data/*.geojson
 !backend/data/demo_routes.json
@@ -59,3 +69,15 @@ ios/
 docs/MAC_SETUP_GUIDE_PHASE3.md
 docs/WINDOWS_SETUP_GUIDE_PHASE3.md
 docs/PHASE3_INSTRUCTIONS.md
+docs/superpowers/
+
+# UI mockup screenshots
+UI SCREENS/
+
+# Project planning / internal docs
+CONTEXT.md
+CONTRIBUTING.md
+FINAL_DOCUMENTATION_SYSTEM_ARCHITECTURE.md
+IMPLEMENTATION_PLAN.md
+PRD.md
+TEAM_ROLES_AND_WORKFLOW.txt

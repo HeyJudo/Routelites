@@ -105,4 +105,10 @@ export const mockOptimizeResponse: OptimizeResponse = {
     exact_global_optimum: true,
     computation_time_ms: 15,
   },
+  places: {
+    store: { label: "Store (Depot)", address: "Pureza St, Santa Mesa, Manila" },
+    stop_a: { label: "Stop A", address: "Nicanor Reyes St, Sampaloc, Manila" },
+    stop_b: { label: "Stop B", address: "España Blvd, Sampaloc, Manila" },
+    stop_c: { label: "Stop C", address: "Legarda St, Sampaloc, Manila" },
+  },
 };

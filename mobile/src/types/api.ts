@@ -6,6 +6,8 @@ export type RouteLeg = {
   distance_m: number;
  // path: LatLngPoint[];
  path: { lat: number; lng: number }[];
+  time_min?: number | null;
+  congestion?: "low" | "moderate" | "heavy" | null;
 };
 
 export type RouteResult = {
@@ -17,6 +19,7 @@ export type RouteResult = {
 export type Savings = {
   distance_m: number;
   percentage: number;
+  time_min?: number | null;
 };
 
 export type OptimizeMetadata = {
@@ -29,6 +32,16 @@ export type OptimizeMetadata = {
   batches_used: number;
   exact_global_optimum: boolean;
   computation_time_ms: number;
+  objective?: "distance" | "time";
+  traffic_source?: "none" | "live" | "mock";
+  optimized_time_min?: number | null;
+  naive_time_min?: number | null;
+  traffic_as_of?: string | null;
+};
+
+export type PlaceInfo = {
+  label: string;
+  address: string;
 };
 
 export type OptimizeResponse = {
@@ -36,9 +49,11 @@ export type OptimizeResponse = {
   naive_route: RouteResult;
   savings: Savings;
   metadata: OptimizeMetadata;
+  places?: Record<string, PlaceInfo>;
 };
 
 export type OptimizeRequest = {
-  store: { lat: number; lng: number; label: string };
-  stops: { id: string; lat: number; lng: number; label: string }[];
+  store: { lat: number; lng: number; label: string; address?: string };
+  stops: { id: string; lat: number; lng: number; label: string; address?: string }[];
+  mode?: "distance" | "time";
 };

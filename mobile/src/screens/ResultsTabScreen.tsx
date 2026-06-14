@@ -1,7 +1,7 @@
 import { Route } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors, spacing } from "../theme";
+import { colors, spacing, type } from "../theme";
 
 export function ResultsTabScreen() {
   return (
@@ -24,6 +24,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 32,
   },
-  copy: { color: colors.muted, fontSize: 15, lineHeight: 22, textAlign: "center" },
-  title: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  copy: { ...type.body, color: colors.muted, textAlign: "center" },
+  title: { ...type.title, color: colors.text },
 });

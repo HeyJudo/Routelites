@@ -1,7 +1,7 @@
 import { X } from "lucide-react-native";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "../theme";
+import { colors, font, radius, spacing, type } from "../theme";
 import type { OptimizeMetadata } from "../types/api";
 
 type Props = {
@@ -21,7 +21,7 @@ export function AlgorithmDetailsModal({ metadata, visible, onClose }: Props) {
       <View style={styles.overlay}>
         <View style={styles.card}>
           <View style={styles.header}>
-            <Text style={styles.title}>Algorithm Details</Text>
+            <Text style={styles.title}>Algorithm details</Text>
             <Pressable onPress={onClose} accessibilityLabel="Close">
               <X color={colors.text} size={22} />
             </Pressable>
@@ -77,10 +77,9 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
   },
   badgeText: {
+    ...type.mono,
     color: colors.primaryDark,
-    fontFamily: "monospace",
-    fontSize: 12,
-    fontWeight: "900",
+    fontFamily: font.heavy,
   },
   card: {
     backgroundColor: colors.card,
@@ -94,7 +93,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
   },
-  footerText: { color: colors.muted, fontSize: 13, lineHeight: 18 },
+  footerText: { ...type.caption, color: colors.muted },
   header: {
     alignItems: "center",
     flexDirection: "row",
@@ -102,7 +101,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   overlay: {
-    backgroundColor: "rgba(0,0,0,0.45)",
+    backgroundColor: colors.overlay,
     flex: 1,
     justifyContent: "center",
   },
@@ -112,7 +111,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 7,
   },
-  rowLabel: { color: colors.muted, fontSize: 14 },
-  rowValue: { color: colors.text, fontSize: 14, fontWeight: "800" },
-  title: { color: colors.text, fontSize: 18, fontWeight: "900" },
+  rowLabel: { ...type.body, color: colors.muted },
+  rowValue: { ...type.label, color: colors.text },
+  title: { ...type.heading, color: colors.text },
 });

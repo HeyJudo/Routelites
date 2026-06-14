@@ -1,36 +1,39 @@
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Map, Route, Settings } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PlannerScreen } from "../screens/PlannerScreen";
-import { ResultsTabScreen } from "../screens/ResultsTabScreen";
+import { SavedRoutesScreen } from "../screens/SavedRoutesScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
-import { colors } from "../theme";
+import { colors, font } from "../theme";
 import type { MainTabParamList } from "./types";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       initialRouteName="Planner"
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: colors.card,
-        tabBarInactiveTintColor: colors.text,
+        tabBarActiveTintColor: colors.textOnPrimary,
+        tabBarInactiveTintColor: colors.muted,
         tabBarItemStyle: {
           borderRadius: 999,
           marginVertical: 8,
           paddingVertical: 4,
         },
         tabBarLabelStyle: {
+          fontFamily: font.semibold,
           fontSize: 12,
-          fontWeight: "800",
         },
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
-          height: 74,
-          paddingBottom: 10,
+          height: 64 + insets.bottom,
+          paddingBottom: Math.max(insets.bottom, 10),
           paddingHorizontal: 22,
         },
         tabBarIcon: ({ color, focused, size }) => {
@@ -40,7 +43,7 @@ export function MainTabs() {
             return <Map color={color} size={iconSize} />;
           }
 
-          if (route.name === "Results") {
+          if (route.name === "MyRoutes") {
             return <Route color={color} size={iconSize} />;
           }
 
@@ -50,9 +53,12 @@ export function MainTabs() {
       })}
     >
       <Tab.Screen name="Planner" component={PlannerScreen} />
-      <Tab.Screen name="Results" component={ResultsTabScreen} />
+      <Tab.Screen
+        name="MyRoutes"
+        component={SavedRoutesScreen}
+        options={{ tabBarLabel: "My Routes" }}
+      />
       <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
-

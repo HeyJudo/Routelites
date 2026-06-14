@@ -1,20 +1,17 @@
-import { ChevronDown, ChevronUp, Trash2, X } from "lucide-react-native";
-import { FlatList, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { X } from "lucide-react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
+import { DraggableStopList } from "./DraggableStopList";
 
 type Props = { visible: boolean; onClose: () => void };
 
 /**
- * Render a slide-in modal showing the current route stops with per-stop reorder and remove controls.
- *
- * The modal lists stops with a 1-based index badge, primary label, truncated address, and actions to move a stop up/down or remove it.
- * When no stops exist an empty-state message is shown. When stops are present a footer exposes a "Clear all stops" action.
- *
- * @param visible - Whether the modal is visible
- * @param onClose - Called when the modal should be closed (e.g., header close button or system back)
- * @returns The rendered modal element containing the stops list and controls
+ * Full-screen modal showing the current route stops with drag-to-reorder
+ * and remove functionality. Uses DraggableStopList for gesture-based
+ * reordering with haptic-like visual feedback.
  */
 export function StopListModal({ visible, onClose }: Props) {
   const stops = useRouteDraftStore((s) => s.stops);
@@ -24,109 +21,85 @@ export function StopListModal({ visible, onClose }: Props) {
 
   return (
     <Modal animationType="slide" visible={visible} onRequestClose={onClose}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Stops ({stops.length})</Text>
-          <Pressable accessibilityLabel="Close" accessibilityRole="button" hitSlop={12} onPress={onClose}>
-            <X color={colors.text} size={24} />
-          </Pressable>
-        </View>
-
-        <FlatList
-          contentContainerStyle={styles.list}
-          data={stops}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <View style={styles.row}>
-              <View style={styles.number}>
-                <Text style={styles.numberText}>{index + 1}</Text>
-              </View>
-              <View style={styles.info}>
-                <Text style={styles.label}>{item.label}</Text>
-                <Text numberOfLines={1} style={styles.address}>
-                  {item.address}
-                </Text>
-              </View>
-              <View style={styles.actions}>
-                <Pressable
-                  accessibilityLabel="Move stop up"
-                  accessibilityRole="button"
-                  disabled={index === 0}
-                  hitSlop={6}
-                  onPress={() => reorderStop(index, index - 1)}
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    (pressed || index === 0) && styles.actionDisabled,
-                  ]}
-                >
-                  <ChevronUp
-                    color={index === 0 ? colors.border : colors.text}
-                    size={18}
-                  />
-                </Pressable>
-                <Pressable
-                  accessibilityLabel="Move stop down"
-                  accessibilityRole="button"
-                  disabled={index === stops.length - 1}
-                  hitSlop={6}
-                  onPress={() => reorderStop(index, index + 1)}
-                  style={({ pressed }) => [
-                    styles.actionBtn,
-                    (pressed || index === stops.length - 1) &&
-                      styles.actionDisabled,
-                  ]}
-                >
-                  <ChevronDown
-                    color={
-                      index === stops.length - 1 ? colors.border : colors.text
-                    }
-                    size={18}
-                  />
-                </Pressable>
-                <Pressable
-                  accessibilityLabel="Remove stop"
-                  accessibilityRole="button"
-                  hitSlop={6}
-                  onPress={() => removeStop(item.id)}
-                  style={styles.actionBtn}
-                >
-                  <Trash2 color={colors.danger} size={18} />
-                </Pressable>
+      <GestureHandlerRootView style={styles.gestureRoot}>
+        <View style={styles.container}>
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text style={styles.title}>Stops</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{stops.length}</Text>
               </View>
             </View>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>No stops added yet.</Text>
-          }
-        />
-
-        {stops.length > 0 && (
-          <View style={styles.footer}>
-            <Pressable onPress={clearStops} style={styles.clearBtn}>
-              <Text style={styles.clearText}>Clear all stops</Text>
+            <Pressable
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={onClose}
+              style={styles.closeBtn}
+            >
+              <X color={colors.text} size={22} />
             </Pressable>
           </View>
-        )}
-      </View>
+
+          {/* Draggable stop list */}
+          <ScrollView
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+          >
+            <DraggableStopList
+              stops={stops}
+              onReorder={reorderStop}
+              onRemove={removeStop}
+            />
+          </ScrollView>
+
+          {/* Footer */}
+          {stops.length > 0 && (
+            <View style={styles.footer}>
+              <Pressable onPress={clearStops} style={styles.clearBtn}>
+                <Text style={styles.clearText}>Clear all stops</Text>
+              </Pressable>
+            </View>
+          )}
+        </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  actionBtn: { padding: 6 },
-  actionDisabled: { opacity: 0.3 },
-  actions: { alignItems: "center", flexDirection: "row", gap: 2 },
-  address: { color: colors.muted, fontSize: 13 },
   clearBtn: {
     alignItems: "center",
     backgroundColor: colors.dangerSoft,
     borderRadius: radius.md,
     padding: 14,
   },
-  clearText: { color: colors.danger, fontSize: 15, fontWeight: "800" },
+  clearText: { ...type.label, color: colors.danger },
+  closeBtn: {
+    alignItems: "center",
+    backgroundColor: colors.mutedSoft,
+    borderRadius: 999,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
   container: { backgroundColor: colors.background, flex: 1, paddingTop: 56 },
-  empty: { color: colors.muted, fontSize: 15, textAlign: "center" },
+  countBadge: {
+    alignItems: "center",
+    backgroundColor: colors.primarySoft,
+    borderRadius: 999,
+    height: 26,
+    justifyContent: "center",
+    minWidth: 26,
+    paddingHorizontal: 6,
+  },
+  countText: {
+    ...type.caption,
+    color: colors.primaryDark,
+  },
   footer: { padding: 20 },
+  gestureRoot: { flex: 1 },
   header: {
     alignItems: "center",
     borderBottomColor: colors.border,
@@ -136,28 +109,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
-  info: { flex: 1 },
-  label: { color: colors.text, fontSize: 15, fontWeight: "800" },
-  list: { gap: spacing.md, padding: 20 },
-  number: {
+  headerLeft: {
     alignItems: "center",
-    borderColor: colors.primary,
-    borderRadius: 999,
-    borderWidth: 2,
-    height: 28,
-    justifyContent: "center",
-    width: 28,
-  },
-  numberText: { color: colors.primaryDark, fontSize: 12, fontWeight: "900" },
-  row: {
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    borderWidth: 1,
     flexDirection: "row",
-    gap: spacing.md,
-    padding: 12,
+    gap: spacing.sm,
   },
-  title: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  list: { padding: 20 },
+  title: { ...type.title, color: colors.text },
 });

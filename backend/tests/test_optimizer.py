@@ -14,7 +14,7 @@ def test_build_distance_matrix_runs_dijkstra_for_each_selected_node():
     )
 
     assert matrix_result.node_order == ["store", "stop_a", "stop_b"]
-    assert matrix_result.dijkstra_runs == 3
+    assert matrix_result.dijkstra_runs == 3  # one multi-target Dijkstra per source
     assert matrix_result.matrix_size == "3x3"
     assert matrix_result.distances == [
         [0, 900, 1400],

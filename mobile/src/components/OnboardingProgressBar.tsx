@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Animated, StyleSheet, Text, View } from "react-native";
 
-import { colors } from "../theme";
+import { colors, font, type } from "../theme";
 
 type OnboardingProgressBarProps = {
   /** Current progress percentage (0-100) */
@@ -66,9 +66,8 @@ const styles = StyleSheet.create({
     height: "100%",
   },
   label: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: "600",
   },
   labelRow: {
     alignItems: "center",
@@ -76,9 +75,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   percentage: {
+    ...type.caption,
     color: colors.primary,
-    fontSize: 13,
-    fontWeight: "800",
+    fontFamily: font.heavy,
   },
   track: {
     backgroundColor: colors.border,

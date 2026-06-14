@@ -1,7 +1,7 @@
 import { MapPin } from "lucide-react-native";
 import { StyleSheet, Text, View } from "react-native";
 
-import { colors } from "../theme";
+import { colors, shadow, type } from "../theme";
 
 type LogoMarkProps = {
   showWordmark?: boolean;
@@ -11,19 +11,25 @@ type LogoMarkProps = {
 export function LogoMark({ showWordmark = true, size = "sm" }: LogoMarkProps) {
   const markSize = size === "lg" ? 78 : 30;
   const iconSize = size === "lg" ? 38 : 18;
+  const isLg = size === "lg";
 
   return (
     <View style={styles.row}>
       <View
         style={[
           styles.mark,
+          isLg ? styles.markLg : styles.markSm,
           {
             height: markSize,
             width: markSize,
           },
         ]}
       >
-        <MapPin color={colors.primary} size={iconSize} strokeWidth={2.7} />
+        <MapPin
+          color={isLg ? colors.textOnPrimary : colors.primary}
+          size={iconSize}
+          strokeWidth={2.7}
+        />
       </View>
       {showWordmark ? <Text style={styles.wordmark}>RouteLite</Text> : null}
     </View>
@@ -33,15 +39,19 @@ export function LogoMark({ showWordmark = true, size = "sm" }: LogoMarkProps) {
 const styles = StyleSheet.create({
   mark: {
     alignItems: "center",
+    borderRadius: 999,
+    justifyContent: "center",
+    ...shadow.sm,
+  },
+  markLg: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+    borderWidth: 0,
+  },
+  markSm: {
     backgroundColor: colors.card,
     borderColor: colors.primarySoft,
-    borderRadius: 999,
     borderWidth: 2,
-    justifyContent: "center",
-    shadowColor: "#000000",
-    shadowOffset: { height: 6, width: 0 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
   },
   row: {
     alignItems: "center",
@@ -49,9 +59,8 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   wordmark: {
+    ...type.title,
     color: colors.primaryDark,
-    fontSize: 22,
-    fontWeight: "800",
+    letterSpacing: -0.5,
   },
 });
-

@@ -6,8 +6,10 @@ import { FadeSlideView } from "../components/FadeSlideView";
 import { OnboardingHeader } from "../components/OnboardingHeader";
 import { OnboardingIllustration } from "../components/OnboardingIllustration";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useAuthStore } from "../state/authStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 
 type OnboardingStopsScreenProps = NativeStackScreenProps<
@@ -21,13 +23,26 @@ type OnboardingStopsScreenProps = NativeStackScreenProps<
  */
 export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+  const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
+  const isGuest = useAuthStore((s) => s.isGuest);
+
+  const finishOnboarding = () => {
+    // Deterministic per-account local flag — gates onboarding reliably.
+    completeOnboarding().catch(() => {});
+    if (!isGuest) {
+      updateProfile({ onboarded_at: new Date().toISOString() }).catch(() => {});
+    }
+  };
 
   const handleStartPlanning = () => {
+    finishOnboarding();
     navigation.replace("MainTabs");
   };
 
   const handleLoadDemo = () => {
     loadDemoRoute();
+    finishOnboarding();
     navigation.replace("MainTabs");
   };
 
@@ -41,10 +56,10 @@ export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps
 
       <View style={styles.content}>
         <FadeSlideView delay={100}>
-          <Text style={styles.stepLabel}>STEP 2 OF 2</Text>
+          <Text style={styles.stepLabel}>STEP 4 OF 4</Text>
           <Text style={styles.title}>Add your delivery stops</Text>
           <Text style={styles.subtitle}>
-            You're all set! Here's how to add stops to your route.
+            You're all set. Here's how to add stops to your route.
           </Text>
         </FadeSlideView>
 
@@ -103,9 +118,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   demoText: {
+    ...type.label,
     color: colors.primary,
-    fontSize: 15,
-    fontWeight: "700",
     textAlign: "center",
   },
   footer: {
@@ -114,16 +128,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
   stepLabel: {
+    ...type.caption,
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 1,
     marginBottom: 4,
   },
   subtitle: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
   },
   tipCard: {
     alignItems: "flex-start",
@@ -143,14 +155,12 @@ const styles = StyleSheet.create({
     width: 40,
   },
   tipText: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 20,
   },
   tipTitle: {
+    ...type.heading,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
   },
   tips: {
     backgroundColor: colors.card,
@@ -161,9 +171,8 @@ const styles = StyleSheet.create({
     padding: 18,
   },
   title: {
+    ...type.display,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
     marginBottom: 8,
   },
 });

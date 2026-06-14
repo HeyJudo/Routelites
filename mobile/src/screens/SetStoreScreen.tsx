@@ -13,8 +13,10 @@ import {
 import { PrimaryButton } from "../components/PrimaryButton";
 import { RouteMap } from "../components/RouteMap";
 import { demoStore } from "../data/demoRoute";
+import { useAuthStore } from "../state/authStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, type } from "../theme";
 import type { RootStackParamList } from "../navigation/types";
 import { isInsideNCR } from "../utils/validation";
 
@@ -27,6 +29,9 @@ type SetStoreScreenProps = NativeStackScreenProps<RootStackParamList, "SetStore"
 export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
   const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
+  const updateProfile = useProfileStore((s) => s.updateProfile);
+  const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
+  const isGuest = useAuthStore((s) => s.isGuest);
   const [showSearch, setShowSearch] = useState(false);
   const [selectedStore, setSelectedStore] = useState(storeLocation ?? demoStore);
   const [validationError, setValidationError] = useState("");
@@ -48,11 +53,18 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
 
   const handleContinue = () => {
     setStoreLocation(selectedStore);
+    // Also persist to Supabase profile for authenticated users
+    if (!isGuest) {
+      updateProfile({ default_store: selectedStore }).catch(() => {
+        // non-blocking — local draft store is the source of truth for the run
+      });
+    }
     navigation.navigate("OnboardingStops");
   };
 
   const handleSkip = () => {
     setStoreLocation(selectedStore);
+    completeOnboarding().catch(() => {});
     navigation.replace("MainTabs");
   };
 
@@ -66,7 +78,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
 
       <View style={styles.content}>
         <FadeSlideView delay={100}>
-          <Text style={styles.stepLabel}>STEP 1 OF 2</Text>
+          <Text style={styles.stepLabel}>STEP 3 OF 4</Text>
           <Text style={styles.title}>Where do your deliveries start?</Text>
           <Text style={styles.subtitle}>
             Set your store, warehouse, or pickup location. This is where your
@@ -153,9 +165,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   currentLocationText: {
+    ...type.body,
     color: colors.primaryDark,
-    fontSize: 15,
-    fontWeight: "700",
   },
   errorCard: {
     backgroundColor: colors.dangerSoft,
@@ -163,9 +174,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   errorText: {
+    ...type.label,
     color: colors.danger,
-    fontSize: 14,
-    fontWeight: "600",
   },
   footer: {
     gap: spacing.md,
@@ -193,12 +203,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   searchText: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 16,
   },
   selectedAddress: {
+    ...type.caption,
     color: colors.muted,
-    fontSize: 13,
   },
   selectedCard: {
     alignItems: "center",
@@ -221,32 +231,27 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   selectedLabel: {
+    ...type.heading,
     color: colors.text,
-    fontSize: 16,
-    fontWeight: "800",
   },
   skipText: {
+    ...type.label,
     color: colors.muted,
-    fontSize: 14,
-    fontWeight: "600",
     textAlign: "center",
   },
   stepLabel: {
+    ...type.caption,
     color: colors.primary,
-    fontSize: 12,
-    fontWeight: "800",
     letterSpacing: 1,
     marginBottom: 4,
   },
   subtitle: {
+    ...type.body,
     color: colors.muted,
-    fontSize: 15,
-    lineHeight: 22,
   },
   title: {
+    ...type.display,
     color: colors.text,
-    fontSize: 24,
-    fontWeight: "900",
     marginBottom: 8,
   },
 });
