@@ -24,7 +24,12 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "INTERNET"
-      ]
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyAd3zz8Wp4GPijgCOjA-Af0ze4KO1iQdcs"
+        }
+      }
     },
     "plugins": [
       "expo-web-browser",
@@ -32,7 +37,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "5090f21b-a3a9-4d3e-b574-26d13e20a0c5"
       }
     }
   }
