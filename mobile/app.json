@@ -29,7 +29,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyAd3zz8Wp4GPijgCOjA-Af0ze4KO1iQdcs"
         }
-      }
+      },
+      "usesCleartextTraffic": true
     },
     "plugins": [
       "expo-web-browser",

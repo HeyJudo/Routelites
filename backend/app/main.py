@@ -5,6 +5,7 @@ from datetime import datetime
 from time import perf_counter
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.algorithms.tsp_branch_bound import solve_tsp_branch_bound
 from app.graph import RoadGraph, create_demo_graph, load_ncr_graph
@@ -30,6 +31,13 @@ from app.services.optimizer import (
 from app.services.traffic import build_time_matrix
 
 app = FastAPI(title="RouteLite API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 _GRAPH_PATH = os.getenv("NCR_GRAPH_PATH", "data/ncr_graph.json")
 
