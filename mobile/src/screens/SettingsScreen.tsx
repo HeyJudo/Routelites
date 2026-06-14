@@ -1,5 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ChevronDown,
   ChevronUp,
@@ -18,6 +19,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ResumeRunBanner } from "../components/ResumeRunBanner";
 import type { RootStackParamList } from "../navigation/types";
 import { useAuthStore } from "../state/authStore";
+import { useProfileStore } from "../state/profileStore";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { colors, radius, spacing, type } from "../theme";
 
@@ -38,6 +40,7 @@ export function SettingsScreen() {
   const isGuest = useAuthStore((s) => s.isGuest);
   const signOut = useAuthStore((s) => s.signOut);
   const setPostSignOutScreen = useAuthStore((s) => s.setPostSignOutScreen);
+  const profile = useProfileStore((s) => s.profile);
 
   // ── Health check ──────────────────────────────────────────────────────────
   const [health, setHealth] = useState<HealthStatus>("unknown");
@@ -114,6 +117,21 @@ export function SettingsScreen() {
     await signOut();
   };
 
+  const handleReplayTour = async () => {
+    try {
+      // Mirror the per-account key used by the walkthrough hook.
+      const key = user
+        ? `routelite-walkthrough-seen:${user.id}`
+        : isGuest
+          ? "routelite-walkthrough-seen:guest"
+          : "routelite-walkthrough-seen";
+      await AsyncStorage.removeItem(key);
+      Alert.alert("Tour reset", "The app tour will show next time you open the Planner.");
+    } catch {
+      // silently fail
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -142,7 +160,17 @@ export function SettingsScreen() {
             </>
           ) : (
             <>
+              {profile?.displayName ? (
+                <Text style={styles.profileName}>{profile.displayName}</Text>
+              ) : null}
               <Text style={styles.bodyText}>{user?.email ?? ""}</Text>
+              {profile?.vehicleType ? (
+                <View style={styles.vehiclePill}>
+                  <Text style={styles.vehiclePillText}>
+                    {profile.vehicleType.charAt(0).toUpperCase() + profile.vehicleType.slice(1)}
+                  </Text>
+                </View>
+              ) : null}
               <PrimaryButton
                 size="sm"
                 variant="danger"
@@ -157,7 +185,7 @@ export function SettingsScreen() {
         {/* Store Location card */}
         <SettingsCard
           icon={<Store color={colors.primaryDark} size={22} />}
-          title="Store Location"
+          title={profile?.storeName ? profile.storeName : "Store Location"}
         >
           <Text style={styles.bodyText}>
             {storeLocation
@@ -200,6 +228,13 @@ export function SettingsScreen() {
           <Text style={styles.bodyText}>
             RouteLite uses Dijkstra + Branch and Bound for route optimization.
           </Text>
+          <PrimaryButton
+            size="sm"
+            variant="outline"
+            onPress={handleReplayTour}
+          >
+            Replay app tour
+          </PrimaryButton>
         </SettingsCard>
 
         {/* Developer disclosure */}
@@ -326,6 +361,21 @@ const styles = StyleSheet.create({
   guestRow: {
     alignItems: "flex-start",
     flexDirection: "row",
+  },
+  profileName: {
+    ...type.heading,
+    color: colors.text,
+  },
+  vehiclePill: {
+    alignSelf: "flex-start",
+    backgroundColor: colors.primarySoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
+  vehiclePillText: {
+    ...type.caption,
+    color: colors.primaryDark,
   },
   healthDot: {
     borderRadius: 4,

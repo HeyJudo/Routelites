@@ -99,6 +99,7 @@ export function AppNavigator() {
       }}
     >
       <Stack.Navigator
+        key={!isAuthed ? "auth" : isOnboarded ? "main" : "onboarding"}
         initialRouteName={isAuthed ? initialRoute : "Auth"}
         screenOptions={{
           animation: "fade",

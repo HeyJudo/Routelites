@@ -24,9 +24,12 @@ type OnboardingStopsScreenProps = NativeStackScreenProps<
 export function OnboardingStopsScreen({ navigation }: OnboardingStopsScreenProps) {
   const loadDemoRoute = useRouteDraftStore((s) => s.loadDemoRoute);
   const updateProfile = useProfileStore((s) => s.updateProfile);
+  const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
   const isGuest = useAuthStore((s) => s.isGuest);
 
   const finishOnboarding = () => {
+    // Deterministic per-account local flag — gates onboarding reliably.
+    completeOnboarding().catch(() => {});
     if (!isGuest) {
       updateProfile({ onboarded_at: new Date().toISOString() }).catch(() => {});
     }
