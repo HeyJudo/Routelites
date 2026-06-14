@@ -1,5 +1,8 @@
-# Claude Code agent worktrees
-.claude/worktrees/
+# Claude Code / AI tool configs
+.claude/
+.agents/
+.kiro/
+skills-lock.json
 
 # OS/editor
 .DS_Store
@@ -66,3 +69,4 @@ ios/
 docs/MAC_SETUP_GUIDE_PHASE3.md
 docs/WINDOWS_SETUP_GUIDE_PHASE3.md
 docs/PHASE3_INSTRUCTIONS.md
+docs/superpowers/
