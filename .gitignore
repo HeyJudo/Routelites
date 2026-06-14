@@ -43,7 +43,7 @@ backend/data/*.gpkg
 backend/data/*.graphml
 backend/data/*.osm
 backend/data/*.osm.pbf
-backend/data/ncr_graph.json
+# backend/data/ncr_graph.json  # tracked for Render deployment
 !backend/data/README.md
 !backend/data/*.geojson
 !backend/data/demo_routes.json
