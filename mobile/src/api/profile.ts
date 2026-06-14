@@ -83,10 +83,12 @@ export async function updateProfile(patch: ProfilePatch): Promise<{ error: Error
   const user = useAuthStore.getState().user;
   if (!user) return { error: new Error("Not authenticated") };
 
+  // Note: no `.eq()` filter here — chaining a filter onto an upsert interferes
+  // with the PostgREST insert/merge request and can silently drop the write.
+  // `onConflict: "id"` merges into the existing row for this user.
   const { error } = await supabase
     .from("profiles")
-    .upsert({ id: user.id, ...patch })
-    .eq("id", user.id);
+    .upsert({ id: user.id, ...patch }, { onConflict: "id" });
 
   return { error: error as Error | null };
 }

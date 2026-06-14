@@ -30,6 +30,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
   const setStoreLocation = useRouteDraftStore((s) => s.setStoreLocation);
   const storeLocation = useRouteDraftStore((s) => s.storeLocation);
   const updateProfile = useProfileStore((s) => s.updateProfile);
+  const completeOnboarding = useProfileStore((s) => s.completeOnboarding);
   const isGuest = useAuthStore((s) => s.isGuest);
   const [showSearch, setShowSearch] = useState(false);
   const [selectedStore, setSelectedStore] = useState(storeLocation ?? demoStore);
@@ -63,6 +64,7 @@ export function SetStoreScreen({ navigation }: SetStoreScreenProps) {
 
   const handleSkip = () => {
     setStoreLocation(selectedStore);
+    completeOnboarding().catch(() => {});
     navigation.replace("MainTabs");
   };
 

@@ -1,5 +1,6 @@
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   ChevronDown,
   ChevronUp,
@@ -116,6 +117,21 @@ export function SettingsScreen() {
     await signOut();
   };
 
+  const handleReplayTour = async () => {
+    try {
+      // Mirror the per-account key used by the walkthrough hook.
+      const key = user
+        ? `routelite-walkthrough-seen:${user.id}`
+        : isGuest
+          ? "routelite-walkthrough-seen:guest"
+          : "routelite-walkthrough-seen";
+      await AsyncStorage.removeItem(key);
+      Alert.alert("Tour reset", "The app tour will show next time you open the Planner.");
+    } catch {
+      // silently fail
+    }
+  };
+
   return (
     <View style={styles.container}>
       <AppHeader />
@@ -212,6 +228,13 @@ export function SettingsScreen() {
           <Text style={styles.bodyText}>
             RouteLite uses Dijkstra + Branch and Bound for route optimization.
           </Text>
+          <PrimaryButton
+            size="sm"
+            variant="outline"
+            onPress={handleReplayTour}
+          >
+            Replay app tour
+          </PrimaryButton>
         </SettingsCard>
 
         {/* Developer disclosure */}

@@ -30,6 +30,11 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ResumeRunBanner } from "../components/ResumeRunBanner";
 import { RouteMap, type RouteMapHandle } from "../components/RouteMap";
 import { StopListModal } from "../components/StopListModal";
+import {
+  WalkthroughCarousel,
+  useWalkthrough,
+  PLANNER_WALKTHROUGH_SLIDES,
+} from "../components/Walkthrough";
 import { createMapStop, demoStore } from "../data/demoRoute";
 import { useRouteDraftStore } from "../state/routeDraftStore";
 import { useProfileStore } from "../state/profileStore";
@@ -67,6 +72,27 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
   const [sheetIndex, setSheetIndex] = useState(1);
   const mapRef = useRef<RouteMapHandle>(null);
   const sheetRef = useRef<BottomSheet>(null);
+
+  // Walkthrough
+  const walkthrough = useWalkthrough();
+  const riderName = useProfileStore((s) => s.profile?.displayName);
+
+  // Trigger the walkthrough once per account, right after onboarding.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const show = await walkthrough.shouldShow();
+      if (!cancelled && show) {
+        // Small delay so the screen has settled before the tour appears.
+        setTimeout(() => {
+          if (!cancelled) walkthrough.show();
+        }, 450);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const addMapStop = (coordinate: { latitude: number; longitude: number }) => {
     if (!isInsideNCR(coordinate.latitude, coordinate.longitude)) {
@@ -336,6 +362,15 @@ export function PlannerScreen({ navigation }: PlannerScreenProps) {
         onClose={() => setShowSearch(false)}
         onPlaceSelected={handlePlaceSelected}
       />
+
+      {/* Walkthrough — full-screen carousel, shown once after onboarding */}
+      {walkthrough.isVisible && (
+        <WalkthroughCarousel
+          slides={PLANNER_WALKTHROUGH_SLIDES}
+          onComplete={walkthrough.complete}
+          riderName={riderName}
+        />
+      )}
     </View>
   );
 }
