@@ -53,6 +53,8 @@ export function PlacesSearchModal({
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(false);
   const [addedStops, setAddedStops] = useState<string[]>([]);
+  const [errorMsg, setErrorMsg] = useState("");
+  const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const focusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refocusTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,6 +73,7 @@ export function PlacesSearchModal({
       if (focusTimeoutRef.current) clearTimeout(focusTimeoutRef.current);
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (refocusTimeoutRef.current) clearTimeout(refocusTimeoutRef.current);
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
     };
   }, [visible]);
 
@@ -151,11 +154,14 @@ export function PlacesSearchModal({
         const wasAdded = onPlaceSelected(place);
 
         if (wasAdded) {
-          // Show confirmation inline — don't close, let user add more
           setAddedStops((prev) => [
             prediction.structured_formatting.main_text,
             ...prev,
           ]);
+        } else {
+          setErrorMsg("This location is outside Metro Manila");
+          if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+          errorTimeoutRef.current = setTimeout(() => setErrorMsg(""), 3000);
         }
 
         setQuery("");
@@ -212,6 +218,12 @@ export function PlacesSearchModal({
             )}
           </View>
         </View>
+
+        {errorMsg !== "" && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{errorMsg}</Text>
+          </View>
+        )}
 
         <ScrollView
           style={styles.body}
@@ -299,6 +311,16 @@ export function PlacesSearchModal({
 }
 
 const styles = StyleSheet.create({
+  errorBanner: {
+    backgroundColor: colors.danger,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  errorBannerText: {
+    ...type.label,
+    color: colors.textOnPrimary,
+    textAlign: "center",
+  },
   addedBadge: {
     alignItems: "center",
     flexDirection: "row",

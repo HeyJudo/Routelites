@@ -7,7 +7,9 @@
     "userInterfaceStyle": "light",
     "scheme": "routelite",
     "backgroundColor": "#f3faf7",
+    "icon": "./assets/logo.png",
     "splash": {
+      "image": "./assets/logo.png",
       "backgroundColor": "#f3faf7",
       "resizeMode": "contain"
     },
@@ -17,7 +19,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#00796b"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#f3faf7"
       },
       "package": "com.pup.routelite",
       "permissions": [
@@ -34,7 +37,15 @@
     },
     "plugins": [
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ]
     ],
     "extra": {
       "eas": {
